@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="alert alert-danger" role="alert">
+  <h2 class="h4">No se pudo completar la acción</h2>
+  <p>{{ mensaje }}</p>
+  <a class="btn btn-outline-danger" href="{{ url_for('inicio') }}">
+    Volver al inicio
+  </a>
+</div>
+{% endblock %}

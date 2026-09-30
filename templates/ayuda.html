@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<section class="card shadow-sm">
+  <div class="card-body p-4">
+    <h2 class="h4">Ayuda del registro</h2>
+    <p class="text-secondary">Fecha del equipo: {{ fecha }}</p>
+    <div class="alert alert-info" role="note">
+      Utiliza datos ficticios durante la práctica.
+    </div>
+    <ol class="mb-4">
+      <li>En Registrar, escribe nombre, grupo y selecciona turno.</li>
+      <li>Presiona Guardar alumno y consulta la lista.</li>
+      <li>Usa Editar para corregir los datos de un alumno.</li>
+      <li>Usa Eliminar solo con tus registros de prueba.</li>
+      <li>En pantalla pequeña, abre el menú con su botón.</li>
+    </ol>
+    <a class="btn btn-primary" href="{{ url_for('inicio') }}">
+      Volver al registro
+    </a>
+  </div>
+</section>
+{% endblock %}

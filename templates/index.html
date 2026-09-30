@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block contenido %}
+<!-- Paso 8 · Parte 1 de 2: Formulario de registro -->
+<section id="registro" class="card shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h2 class="h4 mb-3">Agregar alumno</h2>
+    <form method="post" action="{{ url_for('agregar') }}" class="row g-3">
+      <div class="col-md-6">
+        <label for="nombre" class="form-label">Nombre completo</label>
+        <input id="nombre" name="nombre" class="form-control"
+               required maxlength="80" placeholder="Ejemplo: Ana López">
+      </div>
+      <div class="col-md-3">
+        <label for="grupo" class="form-label">Grupo</label>
+        <input id="grupo" name="grupo" class="form-control"
+               required maxlength="20" placeholder="Ejemplo: 501">
+      </div>
+      <div class="col-md-3">
+        <label for="turno" class="form-label">Turno</label>
+        <select id="turno" name="turno" class="form-select" required>
+          <option value="">Selecciona</option>
+          <option value="Matutino">Matutino</option>
+          <option value="Vespertino">Vespertino</option>
+        </select>
+      </div>
+      <div class="col-12 d-flex gap-2 flex-wrap">
+        <button type="submit" class="btn btn-primary">Guardar alumno</button>
+        <button type="reset" class="btn btn-outline-secondary">
+          Limpiar formulario
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- Paso 8 · Parte 2 de 2: Tabla de alumnos -->
+<section id="lista" class="card shadow-sm">
+  <div class="card-body p-4">
+    <h2 class="h4 mb-3">
+      Alumnos registrados
+      <span class="badge text-bg-primary">{{ alumnos|length }}</span>
+    </h2>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle">
+        <caption>Lista de alumnos del registro escolar</caption>
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Nombre</th><th scope="col">Grupo</th>
+            <th scope="col">Turno</th><th scope="col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for alumno in alumnos %}
+          <tr>
+            <td>{{ alumno.nombre }}</td>
+            <td>{{ alumno.grupo }}</td>
+            <td>{{ alumno.get('turno', 'Sin asignar') }}</td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-outline-primary btn-sm"
+                   href="{{ url_for('editar', id=alumno._id) }}">Editar</a>
+                <form method="post"
+                      action="{{ url_for('eliminar', id=alumno._id) }}"
+                      onsubmit="return confirm('¿Eliminar este alumno?');">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-secondary py-4">
+            Todavía no hay alumnos. Agrega el primero.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>5A-PV</title>
+  <link rel="stylesheet"
+    href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
+  <link rel="stylesheet"
+    href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark"
+       aria-label="Menú principal">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('inicio') }}">
+        5A-PV
+      </a>
+      <button class="navbar-toggler" type="button"
+        data-bs-toggle="collapse" data-bs-target="#menuPrincipal"
+        aria-controls="menuPrincipal" aria-expanded="false"
+        aria-label="Abrir o cerrar menú">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="menuPrincipal">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('inicio') }}">
+              Inicio
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('inicio') }}#registro">Registrar</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link"
+               href="{{ url_for('inicio') }}#lista">Lista de alumnos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('ayuda') }}">Ayuda</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+</nav>
+ <main class="container py-4">
+    <header class="mb-4">
+      <p class="text-uppercase text-secondary small mb-1">
+        Aplicaciones Web · Práctica 03 · Natanael morales 
+      </p>
+      <h1 class="h2">Registro de alumnos del 5A-PV</h1>
+      <p class="text-secondary">Consulta y organiza los datos del grupo.</p>
+    </header>
+    {% block contenido %}{% endblock %}
+  </main>
+  <footer class="container py-3 border-top text-secondary small">
+    Laboratorio de Aplicaciones Web · Datos de práctica
+  </footer>
+  <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>
