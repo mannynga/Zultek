@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>5A-PV</title>
+  <title>Electrónica</title>
   <link rel="stylesheet"
     href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
   <link rel="stylesheet"
@@ -14,7 +14,7 @@
        aria-label="Menú principal">
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('inicio') }}">
-        5A-PV
+        Electrónica
       </a>
       <button class="navbar-toggler" type="button"
         data-bs-toggle="collapse" data-bs-target="#menuPrincipal"
@@ -35,7 +35,7 @@
           </li>
           <li class="nav-item">
             <a class="nav-link"
-               href="{{ url_for('inicio') }}#lista">Lista de alumnos</a>
+               href="{{ url_for('inicio') }}#lista">Catálogo</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('ayuda') }}">Ayuda</a>
@@ -47,10 +47,10 @@
  <main class="container py-4">
     <header class="mb-4">
       <p class="text-uppercase text-secondary small mb-1">
-        Aplicaciones Web · Práctica 03 · Natanael morales 
+        Mi proyecto · Electrónica · Natanael morales 
       </p>
-      <h1 class="h2">Registro de alumnos del 5A-PV</h1>
-      <p class="text-secondary">Consulta y organiza los datos del grupo.</p>
+      <h1 class="h2">Catálogo de productos</h1>
+      <p class="text-secondary">Administra los productos de electrónica.</p>
     </header>
     {% block contenido %}{% endblock %}
   </main>
