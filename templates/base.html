@@ -1,62 +1,152 @@
+{% from '_macros.html' import icono %}
 <!doctype html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Electrónica</title>
+  <meta name="theme-color" content="#07070b">
+  <title>{% block pestana %}Zultek · Tienda de tecnología{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32"
+        href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link rel="apple-touch-icon"
+        href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap">
   <link rel="stylesheet"
     href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
   <link rel="stylesheet"
     href="{{ url_for('static', filename='estilos.css') }}">
+  <script>document.documentElement.classList.add('js');</script>
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark"
+<body class="{% block clase_cuerpo %}{% endblock %}">
+  <nav class="navbar navbar-expand-lg sticky-top" data-bs-theme="dark"
        aria-label="Menú principal">
     <div class="container">
-      <a class="navbar-brand" href="{{ url_for('inicio') }}">
-        Electrónica
+      <a class="navbar-brand" href="{{ url_for('inicio') }}" aria-label="Zultek, inicio">
+        <img src="{{ url_for('static', filename='img/logo.png') }}"
+             alt="Zultek" class="logo" width="126" height="36">
       </a>
+
+      {# Menú de hamburguesa: se muestra por defecto al reducir la pantalla #}
       <button class="navbar-toggler" type="button"
         data-bs-toggle="collapse" data-bs-target="#menuPrincipal"
         aria-controls="menuPrincipal" aria-expanded="false"
         aria-label="Abrir o cerrar menú">
-        <span class="navbar-toggler-icon"></span>
+        <span class="hamburguesa" aria-hidden="true"><i></i><i></i><i></i></span>
       </button>
+
       <div class="collapse navbar-collapse" id="menuPrincipal">
-        <ul class="navbar-nav ms-auto">
+        {# Búsqueda y categoría, junto al logo #}
+        <form id="filtro" class="buscador" role="search"
+              action="{{ url_for('inicio') }}" method="get">
+          <label class="visually-hidden" for="categoria-filtro">Categoría</label>
+          <select id="categoria-filtro" name="cat" class="buscador-cat">
+            <option value="">Todas</option>
+            {% for c in categorias_nav %}<option value="{{ c|lower }}">{{ c }}</option>{% endfor %}
+          </select>
+          <span class="buscador-sep" aria-hidden="true"></span>
+          <label class="visually-hidden" for="buscar">Buscar productos</label>
+          <input id="buscar" name="q" type="search" class="buscador-q"
+                 placeholder="Buscar producto…" autocomplete="off" maxlength="60">
+          <button type="submit" class="buscador-ir" aria-label="Buscar">{{ icono('buscar', 17) }}</button>
+        </form>
+
+        <ul class="navbar-nav me-auto gap-lg-1">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('inicio') }}">
-              Inicio
-            </a>
+            <a class="nav-link {% if request.endpoint == 'inicio' %}active{% endif %}"
+               href="{{ url_for('inicio') }}">Inicio</a>
+          </li>
+          {% if usuario and not es_admin %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'mis_pedidos' %}active{% endif %}"
+               href="{{ url_for('mis_pedidos') }}">Mis pedidos</a>
+          </li>
+          {% endif %}
+          {% if es_admin %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_') and request.endpoint != 'admin_pedidos' %}active{% endif %}"
+               href="{{ url_for('admin_panel') }}">Panel</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link"
-               href="{{ url_for('inicio') }}#registro">Registrar</a>
+            <a class="nav-link {% if request.endpoint == 'admin_pedidos' %}active{% endif %}"
+               href="{{ url_for('admin_pedidos') }}">Pedidos</a>
           </li>
+          {% endif %}
           <li class="nav-item">
-            <a class="nav-link"
-               href="{{ url_for('inicio') }}#lista">Catálogo</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('ayuda') }}">Ayuda</a>
+            <a class="nav-link {% if request.endpoint == 'ayuda' %}active{% endif %}"
+               href="{{ url_for('ayuda') }}">Ayuda</a>
           </li>
         </ul>
+
+        <div class="sesion">
+          {% if usuario %}
+          <a class="btn btn-sm btn-ambar btn-carrito" href="{{ url_for('ver_carrito') }}">
+            {{ icono('carrito', 16) }} Carrito <span class="conteo">{{ carrito_total }}</span>
+          </a>
+          <span class="saludo">{{ icono('usuario', 16) }} {{ usuario }}{% if es_admin %} <span class="badge insignia-admin">Admin</span>{% endif %}</span>
+          <form method="post" action="{{ url_for('cerrar_sesion') }}">
+            <button type="submit" class="btn btn-sm btn-outline-light">Salir</button>
+          </form>
+          {% else %}
+          <a class="btn btn-sm btn-outline-light" href="{{ url_for('iniciar_sesion') }}">Iniciar sesión</a>
+          <a class="btn btn-sm btn-ambar" href="{{ url_for('crear_cuenta') }}">Crear cuenta</a>
+          {% endif %}
+        </div>
       </div>
     </div>
-</nav>
- <main class="container py-4">
-    <header class="mb-4">
-      <p class="text-uppercase text-secondary small mb-1">
-        Mi proyecto · Electrónica · Natanael morales 
-      </p>
-      <h1 class="h2">Catálogo de productos</h1>
-      <p class="text-secondary">Administra los productos de electrónica.</p>
-    </header>
+  </nav>
+
+  <header class="encabezado {% block clase_banner %}banner-compacto{% endblock %}">
+    <div class="banner-fondo" aria-hidden="true"></div>
+    <div class="banner-estrellas" aria-hidden="true"></div>
+    <div class="container banner-contenido">
+      <h1>{% block titulo %}Catálogo Zultek{% endblock %}</h1>
+      <p class="subtitulo">{% block subtitulo %}Encuentra tecnología y agrégala a tu carrito.{% endblock %}</p>
+      {% block banner_extra %}{% endblock %}
+    </div>
+  </header>
+
+  <main class="container py-4">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, texto in mensajes %}
+      <div class="alert alert-{{ categoria }} mb-3 alerta-flash" role="status">{{ texto }}</div>
+      {% endfor %}
+    {% endwith %}
     {% block contenido %}{% endblock %}
   </main>
-  <footer class="container py-3 border-top text-secondary small">
-    Laboratorio de Aplicaciones Web · Datos de práctica
+
+  <footer class="pie">
+    <div class="container">
+      <div class="pie-fila">
+        <div class="pie-marca">
+          <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Zultek" width="105" height="30">
+          <p>Tecnología con estilo. Proyecto escolar: el pago es simulado.</p>
+        </div>
+        <nav class="pie-enlaces" aria-label="Enlaces del pie">
+          <a href="{{ url_for('inicio') }}">Catálogo</a>
+          <a href="{{ url_for('ayuda') }}">Ayuda</a>
+          {% if usuario %}<a href="{{ url_for('ver_carrito') }}">Carrito</a>{% else %}<a href="{{ url_for('iniciar_sesion') }}">Iniciar sesión</a>{% endif %}
+        </nav>
+      </div>
+      <div class="pie-linea">
+        <img src="{{ url_for('static', filename='img/icono.png') }}" alt="" width="18" height="18">
+        <span>Zultek · Tienda de tecnología · Natanael Morales</span>
+      </div>
+    </div>
   </footer>
+
+  <div id="cargando" class="cargando" hidden role="status" aria-live="polite">
+    <div class="caja">
+      <img src="{{ url_for('static', filename='img/cargando.gif') }}"
+           alt="" width="96" height="96">
+      <p id="cargando-texto">Cargando…</p>
+    </div>
+  </div>
+
   <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='tienda.js') }}"></script>
 </body>
 </html>

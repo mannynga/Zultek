@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import foto, icono %}
+{% block pestana %}Tu carrito · Zultek{% endblock %}
+{% block titulo %}Tu carrito{% endblock %}
+{% block subtitulo %}Revisa tus productos y continúa con el pedido.{% endblock %}
+{% block contenido %}
+<ol class="pasos-compra" aria-label="Pasos de la compra">
+  <li class="actual"><span>1</span> Carrito</li>
+  <li><span>2</span> Entrega</li>
+  <li><span>3</span> Confirmado</li>
+</ol>
+
+{% if filas %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="card aparecer" aria-label="Productos en el carrito">
+      <div class="card-body p-3 p-md-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h5 mb-0">Productos <span class="badge contador">{{ total }}</span></h2>
+          <form method="post" action="{{ url_for('carrito_vaciar') }}" onsubmit="return confirm('¿Vaciar el carrito?');">
+            <button type="submit" class="btn btn-outline-danger btn-sm">{{ icono('borrar', 15) }} Vaciar</button>
+          </form>
+        </div>
+        <ul class="lista-carrito">
+          {% for fila in filas %}
+          <li class="item-carrito {% if not fila.ok %}con-problema{% endif %}" style="--i: {{ loop.index0 }}">
+            {{ foto(fila.p, 'mini') }}
+            <div class="item-info">
+              <a class="enlace-titulo fw-semibold" href="{{ url_for('producto_detalle', id=fila.id) }}">{{ fila.nombre }}</a>
+              <div class="text-secondary small">{{ fila.categoria }}</div>
+              {% if not fila.ok %}<span class="estado mt-1" data-estado="Agotado">{{ fila.motivo }}</span>{% endif %}
+              <div class="item-precio small text-secondary">{% if fila.ok %}{{ fila.precio|dinero }} c/u{% endif %}</div>
+            </div>
+            <form method="post" action="{{ url_for('carrito_cambiar', id=fila.id) }}" class="cantidad">
+              <button type="submit" name="accion" value="menos" class="btn btn-outline-secondary btn-sm" aria-label="Quitar uno">{{ icono('menos', 14) }}</button>
+              <output aria-label="Cantidad">{{ fila.cantidad }}</output>
+              <button type="submit" name="accion" value="mas" class="btn btn-outline-secondary btn-sm" aria-label="Agregar uno">{{ icono('mas', 14) }}</button>
+            </form>
+            <div class="item-subtotal">{% if fila.ok %}{{ fila.subtotal|dinero }}{% else %}—{% endif %}</div>
+            <form method="post" action="{{ url_for('carrito_cambiar', id=fila.id) }}">
+              <button type="submit" name="accion" value="quitar" class="btn btn-outline-danger btn-sm" aria-label="Quitar {{ fila.nombre }}">{{ icono('borrar', 15) }}</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if hay_problemas %}
+        <div class="alert alert-warning mt-3 mb-0" role="alert">
+          Quita los productos agotados o sin precio para continuar con el pedido.
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-4">
+    <aside class="card resumen-compra aparecer" aria-label="Resumen del pedido">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-3">Resumen</h2>
+        <div class="linea-resumen"><span>Artículos</span><span>{{ total }}</span></div>
+        <div class="linea-resumen"><span>Envío</span><span>Por definir</span></div>
+        <div class="linea-resumen total">
+          <span>Total</span>
+          <strong class="precio-grande">{{ total_cent|dinero }}</strong>
+        </div>
+        <p class="text-secondary small">Precios en pesos mexicanos (MXN).</p>
+        <div class="d-grid gap-2">
+          {% if not hay_problemas %}
+          <a class="btn btn-ambar btn-lg" href="{{ url_for('confirmar_pedido') }}">Continuar con el pedido {{ icono('flecha', 17) }}</a>
+          {% endif %}
+          <a class="btn btn-outline-primary" href="{{ url_for('inicio') }}#lista">Seguir viendo el catálogo</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% else %}
+<div class="vacio aparecer">
+  {{ icono('carrito', 40) }}
+  <h2 class="h5">Tu carrito está vacío</h2>
+  <p>Agrega productos del catálogo para empezar.</p>
+  <a class="btn btn-primary" href="{{ url_for('inicio') }}#lista">Ver el catálogo</a>
+</div>
+{% endif %}
+{% endblock %}

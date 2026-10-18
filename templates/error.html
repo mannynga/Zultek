@@ -1,10 +1,22 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Algo salió mal · Zultek{% endblock %}
+{% block titulo %}Algo salió mal{% endblock %}
+{% block subtitulo %}No pudimos completar lo que pediste.{% endblock %}
 {% block contenido %}
-<div class="alert alert-danger" role="alert">
-  <h2 class="h4">No se pudo completar la acción</h2>
-  <p>{{ mensaje }}</p>
-  <a class="btn btn-outline-danger" href="{{ url_for('inicio') }}">
-    Volver al inicio
-  </a>
+<div class="row justify-content-center">
+<div class="col-lg-8">
+<div class="card error-tarjeta aparecer">
+  <div class="card-body p-4 p-md-5 text-center" role="alert">
+    <div class="error-ico">{{ icono('alerta', 46) }}</div>
+    <h2 class="h4">No se pudo completar la acción</h2>
+    <p class="text-secondary mb-4">{{ mensaje }}</p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <a class="btn btn-primary" href="{{ url_for('inicio') }}">{{ icono('atras', 16) }} Volver al inicio</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('ayuda') }}">Ir a la ayuda</a>
+    </div>
+  </div>
+</div>
+</div>
 </div>
 {% endblock %}

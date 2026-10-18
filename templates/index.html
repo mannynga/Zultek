@@ -1,83 +1,84 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import foto, precio, icono %}
+
+{% block clase_banner %}banner-grande{% endblock %}
+{% block subtitulo %}Tecnología, audio y accesorios. Encuentra lo tuyo y agrégalo al carrito.{% endblock %}
+{% block banner_extra %}
+<div class="banner-acciones">
+  <a class="btn btn-ambar btn-lg" href="#lista">Explorar catálogo {{ icono('flecha', 18) }}</a>
+  {% if not usuario %}
+  <a class="btn btn-outline-light btn-lg" href="{{ url_for('crear_cuenta') }}">Crear cuenta</a>
+  {% elif es_admin %}
+  <a class="btn btn-outline-light btn-lg" href="{{ url_for('admin_panel') }}">Ir al panel</a>
+  {% endif %}
+</div>
+<ul class="banner-puntos" aria-label="Ventajas de la tienda">
+  <li>{{ icono('rayo', 16) }} Carrito al instante</li>
+  <li>{{ icono('camion', 16) }} Seguimiento de pedidos</li>
+  <li>{{ icono('escudo', 16) }} Pago simulado y seguro</li>
+</ul>
+{% endblock %}
 
 {% block contenido %}
-<!-- Paso 8 · Parte 1 de 2: Formulario de registro -->
-<section id="registro" class="card shadow-sm mb-4">
-  <div class="card-body p-4">
-    <h2 class="h4 mb-3">Agregar producto</h2>
-    <form method="post" action="{{ url_for('agregar') }}" class="row g-3">
-      <div class="col-md-6">
-        <label for="nombre" class="form-label">Producto</label>
-        <input id="nombre" name="nombre" class="form-control"
-               required maxlength="80" placeholder="Ejemplo: Audífonos Bluetooth">
-      </div>
-      <div class="col-md-3">
-        <label for="categoria" class="form-label">Categoría</label>
-        <input id="categoria" name="categoria" class="form-control"
-               required maxlength="20" placeholder="Ejemplo: Audio">
-      </div>
-      <div class="col-md-3">
-        <label for="estado" class="form-label">Estado</label>
-        <select id="estado" name="estado" class="form-select" required>
-          <option value="">Selecciona</option>
-          <option value="Disponible">Disponible</option>
-          <option value="Agotado">Agotado</option>
-        </select>
-      </div>
-      <div class="col-12 d-flex gap-2 flex-wrap">
-        <button type="submit" class="btn btn-primary">Guardar producto</button>
-        <button type="reset" class="btn btn-outline-secondary">
-          Limpiar formulario
-        </button>
-      </div>
-    </form>
-  </div>
-</section>
-
-<!-- Paso 8 · Parte 2 de 2: Tabla de alumnos -->
-<section id="lista" class="card shadow-sm">
-  <div class="card-body p-4">
-    <h2 class="h4 mb-3">
-      Productos registrados
-      <span class="badge text-bg-primary">{{ alumnos|length }}</span>
-    </h2>
-    <div class="table-responsive">
-      <table class="table table-striped table-hover align-middle">
-        <caption>Catálogo de Electrónica</caption>
-        <thead class="table-light">
-          <tr>
-            <th scope="col">Producto</th><th scope="col">Categoría</th>
-            <th scope="col">Estado</th><th scope="col">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for alumno in alumnos %}
-          <tr>
-            <td>{{ alumno.nombre }}</td>
-            <td>{{ alumno.categoria }}</td>
-            <td>{{ alumno.get('estado', 'Sin asignar') }}</td>
-            <td>
-              <div class="d-flex gap-2 flex-wrap">
-                <a class="btn btn-outline-primary btn-sm"
-                   href="{{ url_for('editar', id=alumno._id) }}">Editar</a>
-                <form method="post"
-                      action="{{ url_for('eliminar', id=alumno._id) }}"
-                      onsubmit="return confirm('¿Eliminar este producto?');">
-                  <button type="submit" class="btn btn-outline-danger btn-sm">
-                    Eliminar
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="4" class="text-center text-secondary py-4">
-            Todavía no hay productos. Agrega el primero.
-          </td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<section id="lista" aria-label="Productos">
+  <div class="barra-catalogo">
+    <div>
+      <h2 class="titulo-seccion">Catálogo</h2>
+      <p class="resultado-conteo mb-0" id="conteo-resultados" aria-live="polite">
+        {{ alumnos|length }} producto{{ '' if alumnos|length == 1 else 's' }}
+      </p>
+    </div>
+    <div class="form-check form-switch interruptor">
+      <input id="solo-disponibles" class="form-check-input" type="checkbox" role="switch">
+      <label for="solo-disponibles" class="form-check-label">Solo disponibles</label>
     </div>
   </div>
+
+  {% if alumnos %}
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-3" id="rejilla">
+    {% for alumno in alumnos %}
+    <div class="col tarjeta-col" data-filtrable
+         style="--i: {{ loop.index0 % 12 }}"
+         data-texto="{{ (alumno.nombre ~ ' ' ~ alumno.categoria ~ ' ' ~ alumno.get('descripcion', ''))|lower }}"
+         data-categoria="{{ alumno.categoria|lower }}"
+         data-disponible="{{ '1' if alumno.get('estado') == 'Disponible' else '0' }}">
+      <article class="card producto h-100 aparecer {% if alumno.get('estado') != 'Disponible' %}agotado{% endif %}">
+        <a class="producto-enlace" href="{{ url_for('producto_detalle', id=alumno._id) }}" aria-label="Ver {{ alumno.nombre }}">
+          {{ foto(alumno) }}
+          <span class="estado estado-flota" data-estado="{{ alumno.get('estado', 'Sin asignar') }}">{{ alumno.get('estado', 'Sin asignar') }}</span>
+        </a>
+        <div class="card-body d-flex flex-column">
+          <span class="categoria-chip">{{ alumno.categoria }}</span>
+          <h3 class="h6 mt-2 mb-1">
+            <a class="enlace-titulo" href="{{ url_for('producto_detalle', id=alumno._id) }}">{{ alumno.nombre }}</a>
+          </h3>
+          <div class="mb-3">{{ precio(alumno) }}</div>
+          <div class="mt-auto d-flex gap-2">
+            {% if alumno.get('estado') == 'Disponible' and alumno.get('precio_cent') %}
+            <form method="post" action="{{ url_for('carrito_agregar', id=alumno._id) }}" class="flex-grow-1">
+              <button type="submit" class="btn btn-primary btn-sm w-100">{{ icono('carrito', 15) }} Al carrito</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" disabled>No disponible</button>
+            {% endif %}
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('producto_detalle', id=alumno._id) }}">Ver</a>
+          </div>
+        </div>
+      </article>
+    </div>
+    {% endfor %}
+  </div>
+  <div id="sin-resultados" class="vacio" hidden>
+    {{ icono('buscar', 34) }}
+    <p>Ningún producto coincide con tu búsqueda.</p>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="limpiar-filtros">Limpiar filtros</button>
+  </div>
+  {% else %}
+  <div class="vacio">
+    {{ icono('caja', 38) }}
+    <p>Todavía no hay productos en el catálogo.</p>
+    {% if es_admin %}<a class="btn btn-primary" href="{{ url_for('admin_nuevo') }}">Agregar el primero</a>{% endif %}
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

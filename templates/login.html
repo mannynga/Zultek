@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Iniciar sesión · Zultek{% endblock %}
+{% block titulo %}Iniciar sesión{% endblock %}
+{% block subtitulo %}Entra para comprar y ver tus pedidos.{% endblock %}
+{% block contenido %}
+<section class="auth aparecer">
+  <aside class="auth-lado">
+    <img src="{{ url_for('static', filename='img/icono.png') }}" alt="" width="64" height="66">
+    <h2>Bienvenido de vuelta</h2>
+    <p>Tu carrito y tus pedidos te esperan.</p>
+    <ul>
+      <li>{{ icono('carrito', 17) }} Carrito guardado en tu cuenta</li>
+      <li>{{ icono('camion', 17) }} Sigue el estado de tus pedidos</li>
+      <li>{{ icono('escudo', 17) }} Pago simulado, sin datos de tarjeta</li>
+    </ul>
+  </aside>
+  <div class="auth-forma">
+    <h2 class="h4 mb-1">Iniciar sesión</h2>
+    <p class="text-secondary mb-4">Usa tu correo y contraseña.</p>
+    {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ url_for('iniciar_sesion') }}" class="vstack gap-3">
+      <div>
+        <label for="correo" class="form-label">Correo</label>
+        <input id="correo" name="correo" type="email" class="form-control"
+               required maxlength="80" autocomplete="email" value="{{ correo }}">
+      </div>
+      <div>
+        <label for="contrasena" class="form-label">Contraseña</label>
+        <div class="campo-clave">
+          <input id="contrasena" name="contrasena" type="password" class="form-control"
+                 required maxlength="72" autocomplete="current-password">
+          <button type="button" class="ver-clave" data-ver-clave="contrasena" aria-label="Mostrar u ocultar contraseña">{{ icono('ojo', 17) }}</button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg">Entrar {{ icono('flecha', 17) }}</button>
+    </form>
+    <p class="mt-4 mb-0 text-secondary">
+      ¿No tienes cuenta? <a href="{{ url_for('crear_cuenta') }}">Crea una</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

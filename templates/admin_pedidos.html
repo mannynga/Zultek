@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono, seguimiento %}
+{% block pestana %}Pedidos · Zultek{% endblock %}
+{% block titulo %}Pedidos{% endblock %}
+{% block subtitulo %}Cambia el estado de cada pedido conforme avanza.{% endblock %}
+{% block contenido %}
+{% if lista %}
+<div class="tabs-estado" role="group" aria-label="Filtrar por estado">
+  <button type="button" class="activo" data-estado-filtro="">Todos <span>{{ lista|length }}</span></button>
+  {% for e in ESTADOS_PEDIDO %}
+  <button type="button" data-estado-filtro="{{ e }}">{{ e }} <span>{{ lista|selectattr('estado', 'equalto', e)|list|length }}</span></button>
+  {% endfor %}
+</div>
+<div class="vstack gap-3" id="lista-pedidos">
+  {% for o in lista %}
+  <section class="card pedido-tarjeta aparecer" data-estado-pedido="{{ o.estado }}" style="--i: {{ loop.index0 % 8 }}">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between flex-wrap gap-2 mb-1">
+        <h2 class="h5 mb-0">Pedido <span class="num-pedido">#{{ o._id|string|numero }}</span> · {{ o.usuario }}</h2>
+        <span class="estado" data-estado="{{ o.estado }}">{{ o.estado }}</span>
+      </div>
+      <p class="text-secondary small mb-3">{{ o.creado|fecha }} · {{ o.metodo }}</p>
+      {{ seguimiento(o.estado) }}
+      <div class="row g-3">
+        <div class="col-md-7">
+          <ul class="list-unstyled mb-2 lineas-pedido">
+            {% for i in o['items'] %}
+            <li class="d-flex justify-content-between gap-3">
+              <span>{{ i.cantidad }} × {{ i.nombre }}</span>
+              <span>{{ (i.precio_cent * i.cantidad)|dinero }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          <div class="d-flex justify-content-between border-top pt-2">
+            <strong>Total</strong><strong class="precio">{{ o.total_cent|dinero }}</strong>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <p class="small mb-3 contacto-pedido">
+            <strong>{{ o.contacto.nombre }}</strong> · {{ o.contacto.telefono }}<br>
+            {{ o.contacto.direccion }}
+          </p>
+          <form method="post" action="{{ url_for('admin_pedido_estado', id=o._id) }}" class="d-flex gap-2 flex-wrap align-items-center">
+            <label for="estado-{{ o._id }}" class="form-label mb-0">Estado</label>
+            <select id="estado-{{ o._id }}" name="estado" class="form-select form-select-sm" style="width:auto">
+              {% for e in ESTADOS_PEDIDO %}<option {% if e == o.estado %}selected{% endif %}>{{ e }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+<div id="sin-pedidos" class="vacio" hidden>
+  {{ icono('caja', 34) }}
+  <p>No hay pedidos con ese estado.</p>
+</div>
+{% else %}
+<div class="vacio aparecer">
+  {{ icono('camion', 40) }}
+  <h2 class="h5">Todavía no hay pedidos</h2>
+  <p>Cuando un cliente compre, aparecerá aquí.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,22 +1,52 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Ayuda · Zultek{% endblock %}
+{% block titulo %}Ayuda{% endblock %}
+{% block subtitulo %}Cómo comprar y cómo administrar la tienda.{% endblock %}
 {% block contenido %}
-<section class="card shadow-sm">
+<div class="row justify-content-center">
+<div class="col-lg-9">
+<section class="card aparecer">
   <div class="card-body p-4">
-    <h2 class="h4">Ayuda de Electrónica</h2>
-    <p class="text-secondary">Fecha del equipo: {{ fecha }}</p>
-    <div class="alert alert-info" role="note">
-      Utiliza datos ficticios durante la práctica.
+    <div class="d-flex justify-content-between flex-wrap gap-2 align-items-baseline">
+      <h2 class="h4">Ayuda de Zultek</h2>
+      <span class="text-secondary small">Fecha del equipo: {{ fecha }}</span>
     </div>
-    <ol class="mb-4">
-      <li>En Registrar, escribe producto, categoría y selecciona estado.</li>
-      <li>Presiona Guardar producto y consulta la lista.</li>
-      <li>Usa Editar para corregir los datos de un producto.</li>
-      <li>Usa Eliminar solo con tus registros de prueba.</li>
-      <li>En pantalla pequeña, abre el menú con su botón.</li>
-    </ol>
-    <a class="btn btn-primary" href="{{ url_for('inicio') }}">
-      Volver al registro
-    </a>
+    <div class="alert alert-info" role="note">
+      Es un proyecto escolar: usa datos ficticios. El pago es simulado y nunca se piden datos de tarjeta.
+    </div>
+
+    <ul class="nav nav-pills pestanas-ayuda" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-comprar" data-bs-toggle="pill" data-bs-target="#panel-comprar" type="button" role="tab" aria-controls="panel-comprar" aria-selected="true">{{ icono('carrito', 16) }} Para comprar</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-admin" data-bs-toggle="pill" data-bs-target="#panel-admin" type="button" role="tab" aria-controls="panel-admin" aria-selected="false">{{ icono('panel', 16) }} Para el administrador</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="panel-comprar" role="tabpanel" aria-labelledby="tab-comprar" tabindex="0">
+        <ol class="pasos">
+          <li>Crea una cuenta o inicia sesión.</li>
+          <li>Busca en el catálogo con la barra de arriba y abre un producto para ver su precio y descripción.</li>
+          <li>Presiona Al carrito; ajusta cantidades desde el carrito.</li>
+          <li>Elige Continuar con el pedido, escribe tu entrega y confirma.</li>
+          <li>Consulta el estado en Mis pedidos; puedes cancelar mientras esté pendiente.</li>
+        </ol>
+      </div>
+      <div class="tab-pane fade" id="panel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0">
+        <ol class="pasos">
+          <li>Inicia sesión con tu cuenta de administrador; verás Panel y Pedidos en el menú.</li>
+          <li>En Panel revisas el resumen (catálogo, disponibles y agotados) y usas Agregar producto con nombre, categoría, estado, precio, descripción e imagen.</li>
+          <li>Usa Editar o Eliminar solo con tus registros de prueba.</li>
+          <li>En Pedidos cambia el estado: Pendiente, Pagado, Enviado, Entregado o Cancelado.</li>
+        </ol>
+      </div>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('inicio') }}">{{ icono('atras', 16) }} Volver al catálogo</a>
   </div>
 </section>
+</div>
+</div>
 {% endblock %}

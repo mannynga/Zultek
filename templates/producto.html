@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import foto, precio, icono %}
+{% block pestana %}{{ p.nombre }} · Zultek{% endblock %}
+{% block titulo %}{{ p.nombre }}{% endblock %}
+{% block subtitulo %}{{ p.categoria }}{% endblock %}
+{% block contenido %}
+<nav class="migas" aria-label="Ruta">
+  <a href="{{ url_for('inicio') }}">Inicio</a><span>/</span>
+  <a href="{{ url_for('inicio') }}#lista">Catálogo</a><span>/</span>
+  <span aria-current="page">{{ p.nombre }}</span>
+</nav>
+
+<section class="card detalle aparecer">
+  <div class="card-body p-4 p-lg-5">
+    <div class="row g-4 g-lg-5">
+      <div class="col-md-5">
+        <div class="vitrina">{{ foto(p, 'grande') }}</div>
+      </div>
+      <div class="col-md-7 d-flex flex-column">
+        <div class="mb-2 d-flex gap-2 align-items-center flex-wrap">
+          <span class="categoria-chip">{{ p.categoria }}</span>
+          <span class="estado" data-estado="{{ p.get('estado', 'Sin asignar') }}">{{ p.get('estado', 'Sin asignar') }}</span>
+        </div>
+        <h2 class="h2 detalle-nombre">{{ p.nombre }}</h2>
+        <p class="precio-grande mb-3">{{ precio(p) }} {% if p.get('precio_cent') %}<small>MXN</small>{% endif %}</p>
+        <p class="text-secondary detalle-texto">{{ p.get('descripcion') or 'Este producto aún no tiene descripción.' }}</p>
+
+        <ul class="garantias">
+          <li>{{ icono('camion', 17) }} Envío a tu domicilio</li>
+          <li>{{ icono('escudo', 17) }} Pago simulado</li>
+          <li>{{ icono('rayo', 17) }} Pedido en un minuto</li>
+        </ul>
+
+        <div class="mt-auto">
+          {% if p.get('estado') == 'Disponible' and p.get('precio_cent') %}
+          <form method="post" action="{{ url_for('carrito_agregar', id=p._id) }}" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+              <label for="cantidad" class="form-label">Cantidad</label>
+              <div class="stepper" data-stepper>
+                <button type="button" data-paso="-1" aria-label="Quitar uno">{{ icono('menos', 16) }}</button>
+                <input id="cantidad" name="cantidad" type="number" class="form-control" value="1" min="1" max="{{ MAX_POR_PRODUCTO }}">
+                <button type="button" data-paso="1" aria-label="Agregar uno">{{ icono('mas', 16) }}</button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">{{ icono('carrito', 18) }} Agregar al carrito</button>
+          </form>
+          {% else %}
+          <button type="button" class="btn btn-outline-secondary btn-lg" disabled>No disponible por ahora</button>
+          {% endif %}
+          <div class="d-flex gap-2 flex-wrap mt-4">
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('inicio') }}#lista">{{ icono('atras', 15) }} Volver al catálogo</a>
+            {% if es_admin %}
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_editar', id=p._id) }}">{{ icono('editar', 15) }} Editar (admin)</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

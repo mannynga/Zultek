@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Cuenta de administrador · Zultek{% endblock %}
+{% block titulo %}Cuenta de administrador{% endblock %}
+{% block subtitulo %}Necesitas el código de administrador para crearla.{% endblock %}
+{% block contenido %}
+<section class="auth aparecer">
+  <aside class="auth-lado">
+    <img src="{{ url_for('static', filename='img/icono.png') }}" alt="" width="64" height="66">
+    <h2>Acceso de administrador</h2>
+    <p>Gestiona productos y pedidos de la tienda.</p>
+    <ul>
+      <li>{{ icono('panel', 17) }} Panel con el resumen del catálogo</li>
+      <li>{{ icono('editar', 17) }} Agregar, editar y eliminar productos</li>
+      <li>{{ icono('camion', 17) }} Actualizar el estado de los pedidos</li>
+    </ul>
+  </aside>
+  <div class="auth-forma">
+    <h2 class="h4 mb-3">Crear administrador</h2>
+    {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ url_for('admin_registro') }}" class="vstack gap-3">
+      <div>
+        <label for="codigo" class="form-label">Código de administrador</label>
+        <input id="codigo" name="codigo" type="password" class="form-control" required maxlength="100" autocomplete="off">
+      </div>
+      <div>
+        <label for="nombre" class="form-label">Nombre</label>
+        <input id="nombre" name="nombre" class="form-control" required maxlength="40" value="{{ nombre }}">
+      </div>
+      <div>
+        <label for="correo" class="form-label">Correo</label>
+        <input id="correo" name="correo" type="email" class="form-control" required maxlength="80" autocomplete="email" value="{{ correo }}">
+      </div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label for="contrasena" class="form-label">Contraseña</label>
+          <input id="contrasena" name="contrasena" type="password" class="form-control" required minlength="8" maxlength="72" autocomplete="new-password" data-medidor="medidor-clave">
+        </div>
+        <div class="col-sm-6">
+          <label for="repetir" class="form-label">Repite la contraseña</label>
+          <input id="repetir" name="repetir" type="password" class="form-control" required minlength="8" maxlength="72" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="medidor" id="medidor-clave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="form-text mt-0">Entre 8 y 72 caracteres.</div>
+      <button type="submit" class="btn btn-primary btn-lg">Crear cuenta de administrador {{ icono('flecha', 17) }}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

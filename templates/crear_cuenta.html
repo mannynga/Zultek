@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Crear cuenta · Zultek{% endblock %}
+{% block titulo %}Crear cuenta{% endblock %}
+{% block subtitulo %}Una cuenta te permite comprar y consultar tus pedidos.{% endblock %}
+{% block contenido %}
+<section class="auth aparecer">
+  <aside class="auth-lado">
+    <img src="{{ url_for('static', filename='img/icono.png') }}" alt="" width="64" height="66">
+    <h2>Únete a Zultek</h2>
+    <p>Crea tu cuenta en menos de un minuto.</p>
+    <ul>
+      <li>{{ icono('check', 17) }} Compra con el carrito</li>
+      <li>{{ icono('caja', 17) }} Historial de pedidos</li>
+      <li>{{ icono('escudo', 17) }} Contraseña protegida</li>
+    </ul>
+  </aside>
+  <div class="auth-forma">
+    <h2 class="h4 mb-3">Crear cuenta</h2>
+    <div class="alert alert-info" role="note">
+      Es una práctica: usa datos ficticios y una contraseña que no uses en otro sitio.
+    </div>
+    {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ url_for('crear_cuenta') }}" class="vstack gap-3">
+      <div>
+        <label for="nombre" class="form-label">Nombre</label>
+        <input id="nombre" name="nombre" class="form-control"
+               required maxlength="40" autocomplete="name" value="{{ nombre }}">
+      </div>
+      <div>
+        <label for="correo" class="form-label">Correo</label>
+        <input id="correo" name="correo" type="email" class="form-control"
+               required maxlength="80" autocomplete="email" value="{{ correo }}">
+      </div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label for="contrasena" class="form-label">Contraseña</label>
+          <input id="contrasena" name="contrasena" type="password" class="form-control"
+                 required minlength="8" maxlength="72" autocomplete="new-password" data-medidor="medidor-clave">
+        </div>
+        <div class="col-sm-6">
+          <label for="repetir" class="form-label">Repite la contraseña</label>
+          <input id="repetir" name="repetir" type="password" class="form-control"
+                 required minlength="8" maxlength="72" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="medidor" id="medidor-clave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="form-text mt-0">Entre 8 y 72 caracteres.</div>
+      <button type="submit" class="btn btn-primary btn-lg">Crear cuenta {{ icono('flecha', 17) }}</button>
+    </form>
+    <p class="mt-4 mb-0 text-secondary">
+      ¿Ya tienes cuenta? <a href="{{ url_for('iniciar_sesion') }}">Inicia sesión</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

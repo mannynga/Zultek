@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono %}
+{% block pestana %}Confirmar pedido · Zultek{% endblock %}
+{% block titulo %}Confirmar pedido{% endblock %}
+{% block subtitulo %}Indica dónde entregar y cómo pagarás.{% endblock %}
+{% block contenido %}
+<ol class="pasos-compra" aria-label="Pasos de la compra">
+  <li class="hecho"><span>{{ icono('check', 13) }}</span> Carrito</li>
+  <li class="actual"><span>2</span> Entrega</li>
+  <li><span>3</span> Confirmado</li>
+</ol>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="card aparecer">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-3">Datos de entrega</h2>
+        <div class="alert alert-info" role="note">
+          El pago es simulado: no se cobra nada ni se pide ningún dato de tarjeta.
+        </div>
+        {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+        <form method="post" action="{{ url_for('confirmar_pedido') }}" class="row g-3">
+          <div class="col-md-7">
+            <label for="nombre" class="form-label">Nombre de quien recibe</label>
+            <input id="nombre" name="nombre" class="form-control" required maxlength="60" value="{{ d.nombre }}">
+          </div>
+          <div class="col-md-5">
+            <label for="telefono" class="form-label">Teléfono</label>
+            <input id="telefono" name="telefono" type="tel" class="form-control" required maxlength="20" value="{{ d.telefono }}" autocomplete="tel">
+          </div>
+          <div class="col-12">
+            <label for="direccion" class="form-label">Dirección de entrega</label>
+            <textarea id="direccion" name="direccion" class="form-control" rows="2" required maxlength="160">{{ d.direccion }}</textarea>
+          </div>
+          <div class="col-12">
+            <span class="form-label d-block">Método de pago</span>
+            <div class="metodos">
+              {% for m in METODOS_PAGO %}
+              <label class="metodo">
+                <input type="radio" name="metodo" value="{{ m }}" required {% if d.metodo == m %}checked{% endif %}>
+                <span>{{ m }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-12 d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-ambar btn-lg">{{ icono('check', 18) }} Confirmar pedido</button>
+            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('ver_carrito') }}">Volver al carrito</a>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <aside class="card resumen-compra aparecer" aria-label="Resumen">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-3">Resumen</h2>
+        <ul class="list-unstyled vstack gap-2 mb-3">
+          {% for f in filas %}
+          <li class="d-flex justify-content-between gap-3">
+            <span>{{ f.cantidad }} × {{ f.nombre }}</span>
+            <span class="fw-semibold">{{ f.subtotal|dinero }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="linea-resumen total">
+          <span>Total (MXN)</span><strong class="precio-grande">{{ total_cent|dinero }}</strong>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import foto, icono %}
+{% set v = f if f else p %}
+{% block pestana %}{{ 'Agregar producto' if modo == 'nuevo' else 'Editar producto' }} · Zultek{% endblock %}
+{% block titulo %}{{ 'Agregar producto' if modo == 'nuevo' else 'Editar producto' }}{% endblock %}
+{% block subtitulo %}Los clientes verán el nombre, precio, imagen y descripción.{% endblock %}
+{% block contenido %}
+<div class="row g-4">
+<div class="col-lg-8">
+<section class="card aparecer">
+<div class="card-body p-4">
+  <h2 class="h4 mb-3">{{ 'Nuevo producto' if modo == 'nuevo' else 'Editar producto' }}</h2>
+  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data" class="row g-3" id="form-producto"
+        action="{{ url_for('admin_nuevo') if modo == 'nuevo' else url_for('admin_editar', id=p._id) }}">
+    <div class="col-md-6">
+      <label for="nombre" class="form-label">Producto</label>
+      <input id="nombre" name="nombre" class="form-control" required maxlength="80"
+             placeholder="Ejemplo: Audífonos Bluetooth" value="{{ v.get('nombre', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label for="categoria" class="form-label">Categoría</label>
+      <input id="categoria" name="categoria" class="form-control" required maxlength="20"
+             placeholder="Ejemplo: Audio" value="{{ v.get('categoria', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label for="estado" class="form-label">Estado</label>
+      <select id="estado" name="estado" class="form-select" required>
+        <option value="">Selecciona</option>
+        {% for e in ESTADOS_PRODUCTO %}
+        <option value="{{ e }}" {% if v.get('estado') == e %}selected{% endif %}>{{ e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label for="precio" class="form-label">Precio (MXN)</label>
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input id="precio" name="precio" class="form-control" required inputmode="decimal"
+               placeholder="1299.50"
+               value="{% if f %}{{ f.get('precio', '') }}{% elif p.get('precio_cent') %}{{ '%.2f'|format(p.precio_cent / 100) }}{% endif %}">
+      </div>
+    </div>
+    <div class="col-12">
+      <label for="descripcion" class="form-label d-flex justify-content-between">
+        <span>Descripción <span class="text-secondary fw-normal">(opcional)</span></span>
+        <span class="contador-texto" id="cuenta-desc">0/300</span>
+      </label>
+      <textarea id="descripcion" name="descripcion" class="form-control" rows="3" maxlength="300">{{ v.get('descripcion', '') }}</textarea>
+    </div>
+    <div class="col-12">
+      <span class="form-label d-block">Imagen <span class="text-secondary fw-normal">(PNG, JPG, WEBP o GIF, máximo 5 MB)</span></span>
+      <label class="zona-subida" for="imagen" id="zona-subida">
+        {{ icono('subir', 26) }}
+        <span><strong>Elige una imagen</strong> o arrástrala aquí</span>
+        <span class="small text-secondary" id="nombre-archivo">Ningún archivo seleccionado</span>
+        <input id="imagen" name="imagen" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+      </label>
+      {% if modo == 'editar' and p.get('imagen') %}
+      <div class="form-check mt-2">
+        <input id="quitar_imagen" name="quitar_imagen" value="1" type="checkbox" class="form-check-input">
+        <label for="quitar_imagen" class="form-check-label">Quitar la imagen actual</label>
+      </div>
+      {% endif %}
+    </div>
+    <div class="col-12 d-flex gap-2 flex-wrap">
+      <button type="submit" class="btn btn-primary btn-lg">{{ icono('check', 18) }} Guardar producto</button>
+      <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('admin_panel') }}">Cancelar</a>
+    </div>
+  </form>
+</div>
+</section>
+</div>
+
+<div class="col-lg-4">
+  <aside class="vista-previa aparecer" aria-label="Vista previa del producto">
+    <p class="form-label mb-2">Así lo verán los clientes</p>
+    <article class="card producto" id="vp">
+      <div class="foto">
+        <img id="vp-img" alt=""
+             src="{% if modo == 'editar' and p.get('imagen') %}{{ url_for('producto_imagen', id=p._id, v=p.get('img_v', 0)) }}{% else %}{{ url_for('static', filename='img/icono.png') }}{% endif %}"
+             class="{% if not (modo == 'editar' and p.get('imagen')) %}sin-foto{% endif %}"
+             data-vacio="{{ url_for('static', filename='img/icono.png') }}">
+        <span class="estado estado-flota" id="vp-estado" data-estado="Disponible">Disponible</span>
+      </div>
+      <div class="card-body">
+        <span class="categoria-chip" id="vp-categoria">Categoría</span>
+        <h3 class="h6 mt-2 mb-1" id="vp-nombre">Nombre del producto</h3>
+        <div><span class="precio" id="vp-precio">$0.00</span></div>
+      </div>
+    </article>
+  </aside>
+</div>
+</div>
+{% endblock %}

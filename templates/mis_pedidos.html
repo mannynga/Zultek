@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono, seguimiento %}
+{% block pestana %}Mis pedidos · Zultek{% endblock %}
+{% block titulo %}Mis pedidos{% endblock %}
+{% block subtitulo %}Consulta el estado de tus compras.{% endblock %}
+{% block contenido %}
+{% if lista %}
+<div class="vstack gap-3">
+  {% for o in lista %}
+  <section class="card pedido-tarjeta aparecer" style="--i: {{ loop.index0 % 8 }}">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between flex-wrap gap-2 mb-1">
+        <h2 class="h5 mb-0">Pedido <span class="num-pedido">#{{ o._id|string|numero }}</span></h2>
+        <span class="estado" data-estado="{{ o.estado }}">{{ o.estado }}</span>
+      </div>
+      <p class="text-secondary small mb-3">{{ o.creado|fecha }} · {{ o.metodo }}</p>
+      {{ seguimiento(o.estado) }}
+      <ul class="list-unstyled mb-2 lineas-pedido">
+        {% for i in o['items'] %}
+        <li class="d-flex justify-content-between gap-3">
+          <span>{{ i.cantidad }} × {{ i.nombre }}</span>
+          <span>{{ (i.precio_cent * i.cantidad)|dinero }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="d-flex justify-content-between border-top pt-2 mb-2">
+        <strong>Total</strong><strong class="precio">{{ o.total_cent|dinero }}</strong>
+      </div>
+      <p class="small text-secondary mb-2">Entrega: {{ o.contacto.direccion }}</p>
+      {% if o.estado == 'Pendiente' %}
+      <form method="post" action="{{ url_for('cancelar_pedido', id=o._id) }}" onsubmit="return confirm('¿Cancelar este pedido?');">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Cancelar pedido</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="vacio aparecer">
+  {{ icono('caja', 40) }}
+  <h2 class="h5">Todavía no tienes pedidos</h2>
+  <p>Cuando compres algo, aquí verás su avance.</p>
+  <a class="btn btn-primary" href="{{ url_for('inicio') }}#lista">Ver el catálogo</a>
+</div>
+{% endif %}
+{% endblock %}
