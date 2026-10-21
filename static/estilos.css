@@ -940,3 +940,7 @@ main.container { position: relative; }
   body.pagina-inicio .pie-rejilla { display: grid; grid-template-columns: 1fr; gap: 1.1rem; }
   body.pagina-inicio .pie-contacto { display: flex; }
 }
+
+.vitrina .foto,
+.vitrina .foto.grande,
+.vitrina .foto img { background: #fff !important; background-color: #fff !important; }
