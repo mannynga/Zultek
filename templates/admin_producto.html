@@ -20,8 +20,18 @@
     </div>
     <div class="col-md-3">
       <label for="categoria" class="form-label">Categoría</label>
-      <input id="categoria" name="categoria" class="form-control" required maxlength="20"
-             placeholder="Ejemplo: Audio" value="{{ v.get('categoria', '') }}">
+      {% set sel = v.get('categoria', '') %}
+      {% set es_nueva = sel == CATEGORIA_NUEVA %}
+      <select id="categoria" name="categoria" class="form-select" required>
+        <option value="">Selecciona</option>
+        {% for c in categorias %}
+        <option value="{{ c }}" {% if sel == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+        <option value="{{ CATEGORIA_NUEVA }}" {% if es_nueva %}selected{% endif %}>+ Crear nueva categoría…</option>
+      </select>
+      <input id="categoria_nueva" name="categoria_nueva" class="form-control mt-2" maxlength="20"
+             placeholder="Nombre de la nueva categoría" autocomplete="off"
+             value="{{ v.get('categoria_nueva', '') }}" {% if not es_nueva %}hidden{% else %}required{% endif %}>
     </div>
     <div class="col-md-3">
       <label for="estado" class="form-label">Estado</label>

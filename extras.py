@@ -36,6 +36,7 @@ ESTADOS_PRODUCTO = ("Disponible", "Agotado")
 ESTADOS_PEDIDO = ("Pendiente", "Pagado", "Enviado", "Entregado", "Cancelado")
 METODOS_PAGO = ("Tarjeta (simulado)", "Transferencia", "Pago al recibir")
 PROTEGIDOS = {"agregar", "editar", "eliminar"}   # CRUD original: solo admin
+CATEGORIA_NUEVA = "__nueva__"                    # valor del selector "Crear nueva categoría"
 MAX_IMAGEN = 5 * 1024 * 1024
 ZONA = timezone(timedelta(hours=-5))             # Cancun: UTC-5 todo el ano
 
@@ -147,7 +148,8 @@ def registrar_extras(app, base_datos):
     app.jinja_env.filters["numero"] = lambda v: str(v)[-6:].upper()
     app.jinja_env.globals.update(
         ESTADOS_PEDIDO=ESTADOS_PEDIDO, ESTADOS_PRODUCTO=ESTADOS_PRODUCTO,
-        METODOS_PAGO=METODOS_PAGO, MAX_POR_PRODUCTO=MAX_POR_PRODUCTO)
+        METODOS_PAGO=METODOS_PAGO, MAX_POR_PRODUCTO=MAX_POR_PRODUCTO,
+        CATEGORIA_NUEVA=CATEGORIA_NUEVA)
 
     # ------------------------- Utilidades -------------------------
     intentos = {}
@@ -402,10 +404,28 @@ def registrar_extras(app, base_datos):
         pendientes = len(list(pedidos.find({"estado": "Pendiente"})))
         return render_template("admin.html", lista=lista, pendientes=pendientes)
 
+    def categorias_existentes():
+        """Categorías que ya usan los productos (sin repetir mayúsculas)."""
+        try:
+            vistas = {}
+            for c in productos.distinct("categoria"):
+                if isinstance(c, str) and c.strip():
+                    vistas.setdefault(c.strip().lower(), c.strip())
+            return sorted(vistas.values(), key=str.lower)
+        except PyMongoError:
+            return []
+
     def formulario_producto(modo, producto, destino):
         """Alta y edicion comparten la misma pantalla."""
+        categorias = categorias_existentes()
         if request.method == "POST":
-            datos, error = leer_producto(request.form)
+            form = request.form.to_dict()
+            if form.get("categoria") == CATEGORIA_NUEVA:
+                # "Crear nueva": usa lo escrito; si ya existe, reutiliza su escritura
+                nueva = " ".join(form.get("categoria_nueva", "").split())
+                form["categoria"] = {c.lower(): c for c in categorias}.get(
+                    nueva.lower(), nueva)
+            datos, error = leer_producto(form)
             imagen = None
             archivo = request.files.get("imagen")
             if not error and archivo and archivo.filename:
@@ -413,7 +433,7 @@ def registrar_extras(app, base_datos):
             if error:
                 return render_template(
                     "admin_producto.html", modo=modo, p=producto or {},
-                    f=request.form, error=error), 400
+                    f=request.form, error=error, categorias=categorias), 400
             quitar = request.form.get("quitar_imagen") == "1"
             if imagen or quitar:
                 datos["imagen"] = bool(imagen)
@@ -432,7 +452,8 @@ def registrar_extras(app, base_datos):
             flash("Producto guardado.", "success")
             return redirect(url_for("admin_panel"))
         return render_template("admin_producto.html", modo=modo,
-                               p=producto or {}, f=None, error=None)
+                               p=producto or {}, f=None, error=None,
+                               categorias=categorias)
 
     @app.route("/admin/producto/nuevo", methods=["GET", "POST"])
     @requiere_admin

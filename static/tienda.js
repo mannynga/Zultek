@@ -190,7 +190,7 @@
   var formProd = document.getElementById('form-producto');
   if (formProd) {
     var $ = function (id) { return document.getElementById(id); };
-    var nombre = $('nombre'), cat = $('categoria'), est = $('estado'), precio = $('precio');
+    var nombre = $('nombre'), cat = $('categoria'), catNueva = $('categoria_nueva'), est = $('estado'), precio = $('precio');
     var desc = $('descripcion'), img = $('imagen');
     function dinero(txt) {
       var n = parseFloat(String(txt).replace(/[$,\s]/g, ''));
@@ -199,7 +199,13 @@
     }
     function pintar() {
       $('vp-nombre').textContent = nombre.value.trim() || 'Nombre del producto';
-      $('vp-categoria').textContent = cat.value.trim() || 'Categoría';
+      var nueva = cat.value === '__nueva__';
+      if (catNueva) {                       // "Crear nueva categoría": muestra/oculta el campo
+        catNueva.hidden = !nueva;
+        catNueva.required = nueva;
+      }
+      var nombreCat = nueva ? (catNueva ? catNueva.value.trim() : '') : cat.options[cat.selectedIndex].text;
+      $('vp-categoria').textContent = (cat.value && nombreCat) ? nombreCat : 'Categoría';
       $('vp-precio').textContent = dinero(precio.value);
       var e = est.value || 'Disponible';
       $('vp-estado').textContent = e;
@@ -210,10 +216,13 @@
         $('cuenta-desc').classList.toggle('casi', n > 260);
       }
     }
-    [nombre, cat, est, precio, desc].forEach(function (el) {
+    [nombre, cat, catNueva, est, precio, desc].forEach(function (el) {
       if (el) { el.addEventListener('input', pintar); el.addEventListener('change', pintar); }
     });
     pintar();
+    cat.addEventListener('change', function () {
+      if (cat.value === '__nueva__' && catNueva) catNueva.focus();
+    });
 
     function verArchivo(f) {
       if (!f) return;

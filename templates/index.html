@@ -35,7 +35,7 @@
   </div>
 
   {% if alumnos %}
-  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-3" id="rejilla">
+  <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-2 g-sm-3" id="rejilla">
     {% for alumno in alumnos %}
     <div class="col tarjeta-col" data-filtrable
          style="--i: {{ loop.index0 % 12 }}"

@@ -1,0 +1,25 @@
+/* Zultek · Resplandor del agujero negro (solo CSS).
+   Se carga DESPUES de estilos.css. agujero.js mueve --hx, --hy y --gl para
+   que el resplandor quede justo sobre el agujero en cualquier pantalla.
+   Solo usa opacity. Con "reducir movimiento" queda fijo. */
+.banner-fondo::before {
+  content: "";
+  position: absolute;
+  left: var(--hx, 48%);
+  top: var(--hy, 56%);
+  width: var(--gl, 46%);
+  aspect-ratio: 1.5;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(closest-side,
+    rgba(222, 140, 255, .5) 0%,
+    rgba(150, 60, 255, .22) 45%,
+    transparent 72%);
+  opacity: .5;
+  animation:
+    ag-entrar 1.8s .4s ease both,
+    ag-respirar 7s 2.2s ease-in-out infinite;
+}
+@keyframes ag-entrar   { from { opacity: 0; } to { opacity: .5; } }
+@keyframes ag-respirar { 0%, 100% { opacity: .5; } 50% { opacity: .85; } }

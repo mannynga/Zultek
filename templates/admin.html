@@ -42,7 +42,7 @@
       </div>
     </div>
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0 tabla-movil">
         <caption>Catálogo de Zultek</caption>
         <thead>
           <tr>
@@ -63,10 +63,10 @@
                 <a class="enlace-titulo fw-semibold" href="{{ url_for('producto_detalle', id=p._id) }}">{{ p.nombre }}</a>
               </div>
             </td>
-            <td><span class="categoria-chip">{{ p.categoria }}</span></td>
-            <td>{% if p.get('precio_cent') %}<span class="precio">{{ p.precio_cent|dinero }}</span>{% else %}<span class="badge text-bg-warning">Sin precio</span>{% endif %}</td>
-            <td><span class="estado" data-estado="{{ p.get('estado', 'Sin asignar') }}">{{ p.get('estado', 'Sin asignar') }}</span></td>
-            <td>
+            <td data-etiqueta="Categoría"><span class="categoria-chip">{{ p.categoria }}</span></td>
+            <td data-etiqueta="Precio">{% if p.get('precio_cent') %}<span class="precio">{{ p.precio_cent|dinero }}</span>{% else %}<span class="badge text-bg-warning">Sin precio</span>{% endif %}</td>
+            <td data-etiqueta="Estado"><span class="estado" data-estado="{{ p.get('estado', 'Sin asignar') }}">{{ p.get('estado', 'Sin asignar') }}</span></td>
+            <td class="celda-acciones">
               <div class="d-flex gap-2 flex-wrap">
                 <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin_editar', id=p._id) }}">{{ icono('editar', 14) }} Editar</a>
                 <form method="post" action="{{ url_for('eliminar', id=p._id) }}"
