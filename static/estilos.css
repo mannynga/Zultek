@@ -589,7 +589,7 @@ main.container { position: relative; }
 .migas a:hover { color: var(--cian); }
 .migas span[aria-current] { color: var(--texto); }
 .vitrina { position: relative; padding: .6rem; background: linear-gradient(135deg, rgba(176, 77, 255, .35), rgba(255, 46, 147, .2) 50%, rgba(25, 227, 255, .3)); clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
-.vitrina .foto.grande { border: 0; background-color: #0c0c14; }
+.vitrina .foto.grande { border: 0; background-color: #ffffff; }
 .vitrina:hover .foto img:not(.sin-foto) { transform: scale(1.06); }
 .detalle-nombre { font-size: clamp(1.7rem, 3.5vw, 2.4rem); font-weight: 700; }
 .detalle-texto { font-size: 1.02rem; line-height: 1.65; }
