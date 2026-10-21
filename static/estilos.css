@@ -909,3 +909,34 @@ main.container { position: relative; }
   .tabla-movil td.celda-acciones .btn { width: 100%; min-height: 2.4rem; }
   .tabla-movil td[colspan] { grid-column: 1 / -1; }
 }
+
+/* =====================================================================
+   Pie compacto en celular: la navegación ya está en la barra inferior,
+   así que solo quedan las redes y los nombres (en todas las vistas).
+   ===================================================================== */
+@media (max-width: 991.98px) {
+  .pie { margin-top: 1rem; }
+  .pie .container { padding-block: .8rem .6rem; }
+  .pie-rejilla { display: block; }
+  .pie-marca, .pie-explorar, .pie-contacto { display: none; }
+  .pie-redes { flex-direction: row; align-items: center; justify-content: center; gap: .8rem; }
+  .pie-redes .pie-titulo { display: none; }
+  .pie-redes .redes { margin: 0; }
+  .red { width: 2.3rem; height: 2.3rem; }
+  .pie-usuario { font-size: .85rem; }
+  .pie-linea { margin-top: .7rem; padding-top: .6rem; justify-content: center; }
+}
+
+/* =====================================================================
+   Celular: contacto y redes solo en el inicio. En las demás vistas
+   (pedidos, ayuda, carrito, panel...) queda únicamente la línea de nombres.
+   ===================================================================== */
+@media (max-width: 991.98px) {
+  body:not(.pagina-inicio) .pie-rejilla { display: none; }
+  body:not(.pagina-inicio) .pie { margin-top: 1rem; }
+  body:not(.pagina-inicio) .pie .container { padding-block: .2rem .5rem; }
+  body:not(.pagina-inicio) .pie-linea { margin-top: .5rem; border-top: 0; padding-top: 0; }
+
+  body.pagina-inicio .pie-rejilla { display: grid; grid-template-columns: 1fr; gap: 1.1rem; }
+  body.pagina-inicio .pie-contacto { display: flex; }
+}
