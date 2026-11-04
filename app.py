@@ -14,7 +14,11 @@ if not mongo_uri:
         raise RuntimeError("Configura MONGO_URI en Render.")
     mongo_uri = "mongodb://127.0.0.1:27017/"
 
-cliente = MongoClient(mongo_uri, serverSelectionTimeoutMS=10000)
+cliente = MongoClient(
+    mongo_uri,
+    serverSelectionTimeoutMS=10000,
+    tz_aware=True,   # fechas con zona UTC: necesario para vence_en
+)
 base_datos = cliente["catalogo_electronica"]
 alumnos = base_datos["productos"]
 
@@ -51,7 +55,7 @@ def inicio():
 @app.route("/agregar", methods=["POST"])
 def agregar():
     datos = leer_formulario()
-    alumnos.insert_one(datos)
+    alumnos.insert_one({**datos, "existencias": 0, "reservadas": 0})
     return redirect(url_for("inicio"))
 
 @app.route("/editar/<id>", methods=["GET", "POST"])
@@ -109,7 +113,7 @@ def leer_json():
 def api_productos():
     if request.method == "POST":
         datos = leer_json()
-        resultado = alumnos.insert_one(datos)
+        resultado = alumnos.insert_one({**datos, "existencias": 0, "reservadas": 0})
         producto = buscar_alumno(str(resultado.inserted_id))
         return jsonify(producto_json(producto)), 201
     lista = alumnos.find().sort("nombre", 1)
