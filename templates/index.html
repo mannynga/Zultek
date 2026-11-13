@@ -37,11 +37,13 @@
   {% if alumnos %}
   <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-2 g-sm-3" id="rejilla">
     {% for alumno in alumnos %}
+    {% set exist = alumno.get('existencias', 0) or 0 %}
+    {% set disp = [exist - (alumno.get('reservadas', 0) or 0), 0]|max %}
     <div class="col tarjeta-col" data-filtrable
          style="--i: {{ loop.index0 % 12 }}"
          data-texto="{{ (alumno.nombre ~ ' ' ~ alumno.categoria ~ ' ' ~ alumno.get('descripcion', ''))|lower }}"
          data-categoria="{{ alumno.categoria|lower }}"
-         data-disponible="{{ '1' if alumno.get('estado') == 'Disponible' else '0' }}">
+         data-disponible="{{ '1' if alumno.get('estado') == 'Disponible' and disp > 0 else '0' }}">
       <article class="card producto h-100 aparecer {% if alumno.get('estado') != 'Disponible' %}agotado{% endif %}">
         <a class="producto-enlace" href="{{ url_for('producto_detalle', id=alumno._id) }}" aria-label="Ver {{ alumno.nombre }}">
           {{ foto(alumno) }}
@@ -52,12 +54,19 @@
           <h3 class="h6 mt-2 mb-1">
             <a class="enlace-titulo" href="{{ url_for('producto_detalle', id=alumno._id) }}">{{ alumno.nombre }}</a>
           </h3>
-          <div class="mb-3">{{ precio(alumno) }}</div>
+          <div class="mb-1">{{ precio(alumno) }}</div>
+          <div class="small text-secondary mb-3">
+            {% if exist <= 0 %}Sin existencias
+            {% elif disp == 0 %}Todas apartadas por otros clientes
+            {% else %}{{ disp }} disponible{{ '' if disp == 1 else 's' }}{% endif %}
+          </div>
           <div class="mt-auto d-flex gap-2">
-            {% if alumno.get('estado') == 'Disponible' and alumno.get('precio_cent') %}
+            {% if alumno.get('estado') == 'Disponible' and alumno.get('precio_cent') and disp > 0 %}
             <form method="post" action="{{ url_for('carrito_agregar', id=alumno._id) }}" class="flex-grow-1">
               <button type="submit" class="btn btn-primary btn-sm w-100">{{ icono('carrito', 15) }} Al carrito</button>
             </form>
+            {% elif alumno.get('estado') == 'Disponible' and alumno.get('precio_cent') and exist > 0 %}
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" disabled>Sin disponibilidad temporal</button>
             {% else %}
             <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" disabled>No disponible</button>
             {% endif %}

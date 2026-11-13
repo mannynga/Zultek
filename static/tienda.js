@@ -247,6 +247,28 @@
     }
   }
 
+  // Contador de la reserva. Solo INFORMA: el servidor vuelve a revisar la
+  // hora al confirmar. Parte de los segundos que calculó el servidor, así no
+  // depende de que el reloj del dispositivo esté bien.
+  var cuentas = document.querySelectorAll('[data-cuenta]');
+  if (cuentas.length) {
+    var fin = Date.now() + (parseInt(cuentas[0].getAttribute('data-cuenta'), 10) || 0) * 1000;
+    var pintar = function () {
+      var faltan = Math.max(0, fin - Date.now());
+      var m = String(Math.floor(faltan / 60000)).padStart(2, '0');
+      var s = String(Math.floor((faltan % 60000) / 1000)).padStart(2, '0');
+      for (var i = 0; i < cuentas.length; i++) cuentas[i].textContent = m + ':' + s;
+      return faltan;
+    };
+    pintar();
+    var reloj = setInterval(function () {
+      if (pintar() === 0) {
+        clearInterval(reloj);
+        window.location.assign(window.location.pathname); // el servidor libera y recalcula
+      }
+    }, 1000);
+  }
+
   // Pequeño rebote del contador del carrito después de agregar un producto
   var cuenta = document.querySelector('.navbar .conteo');
   if (cuenta && document.querySelector('.alerta-flash.alert-success')) cuenta.classList.add('rebota');

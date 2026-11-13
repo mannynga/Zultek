@@ -9,6 +9,11 @@
   <li class="actual"><span>2</span> Entrega</li>
   <li><span>3</span> Confirmado</li>
 </ol>
+<div class="alert alert-warning d-flex align-items-center gap-2" role="status">
+  {{ icono('reloj', 20) }}
+  <span>Tu reserva termina en <strong id="contador" data-cuenta="{{ restante }}">--:--</strong>.
+    Confirma antes de que acabe el tiempo.</span>
+</div>
 <div class="row g-4">
   <div class="col-lg-7">
     <section class="card aparecer">
