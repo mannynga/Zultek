@@ -11,12 +11,6 @@
 </ol>
 
 {% if filas %}
-<div class="alert alert-warning d-flex align-items-center gap-2 aparecer" role="status">
-  {{ icono('reloj', 20) }}
-  <span>Tus productos están <strong>apartados</strong>. Tiempo restante:
-    <strong id="contador" data-cuenta="{{ restante }}">--:--</strong>.
-    Al terminar el tiempo vuelven a estar disponibles para otros clientes.</span>
-</div>
 <div class="row g-4">
   <div class="col-lg-8">
     <section class="card aparecer" aria-label="Productos en el carrito">

@@ -69,14 +69,6 @@ def leer_precio(texto):
     return int(valor * 100)
 
 
-def leer_existencias(texto):
-    """'12' -> 12. None si no es un entero de 0 a 9999."""
-    texto = (texto or "").strip()
-    if not re.fullmatch(r"[0-9]{1,4}", texto):
-        return None
-    return int(texto)
-
-
 def leer_producto(form):
     """Mismos limites que leer_formulario de app.py, mas precio y descripcion."""
     nombre = form.get("nombre", "").strip()
@@ -84,7 +76,6 @@ def leer_producto(form):
     estado = form.get("estado", "").strip()
     descripcion = form.get("descripcion", "").strip()
     precio = leer_precio(form.get("precio", ""))
-    existencias = leer_existencias(form.get("existencias", ""))
     error = None
     if not nombre or not categoria or not estado:
         error = "Completa nombre, categoría y estado."
@@ -94,13 +85,10 @@ def leer_producto(form):
         error = "Selecciona un estado válido."
     elif precio is None:
         error = "Escribe un precio válido, por ejemplo 1299.50."
-    elif existencias is None:
-        error = "Las existencias deben ser un número entero de 0 a 9999."
     elif len(descripcion) > 300:
         error = "La descripción admite hasta 300 caracteres."
     datos = {"nombre": nombre, "categoria": categoria, "estado": estado,
-             "precio_cent": precio, "descripcion": descripcion,
-             "existencias": existencias}
+             "precio_cent": precio, "descripcion": descripcion}
     return datos, error
 
 
@@ -226,11 +214,7 @@ def registrar_extras(app, base_datos):
         return envoltura
 
     def abrir_sesion(usuario_id, nombre):
-        # Conserva la identidad de reserva (reservas.py) al iniciar sesion
-        conservar = {k: session[k] for k in ("visitante", "reserva_folio")
-                     if k in session}
         session.clear()
-        session.update(conservar)
         session["uid"] = str(usuario_id)
         session["nombre"] = nombre
 
