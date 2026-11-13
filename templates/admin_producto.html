@@ -51,15 +51,6 @@
                value="{% if f %}{{ f.get('precio', '') }}{% elif p.get('precio_cent') %}{{ '%.2f'|format(p.precio_cent / 100) }}{% endif %}">
       </div>
     </div>
-    <div class="col-md-4">
-      <label for="existencias" class="form-label">Existencias</label>
-      <input id="existencias" name="existencias" type="number" class="form-control" required
-             min="0" max="9999" step="1" inputmode="numeric" placeholder="10"
-             value="{% if f %}{{ f.get('existencias', '') }}{% else %}{{ p.get('existencias', '') }}{% endif %}">
-      {% if modo == 'editar' %}
-      <div class="form-text">Apartadas ahora: {{ p.get('reservadas', 0) or 0 }}</div>
-      {% endif %}
-    </div>
     <div class="col-12">
       <label for="descripcion" class="form-label d-flex justify-content-between">
         <span>Descripción <span class="text-secondary fw-normal">(opcional)</span></span>
