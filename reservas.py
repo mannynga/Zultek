@@ -396,18 +396,4 @@ def registrar_reservas(app, base_datos):
         respuesta.headers["Cache-Control"] = "no-store"
         return respuesta
 
-    # ------------------------- Codigos QR -------------------------
-    @app.route("/reserva/<folio>/qr.png")
-    def qr_reserva(folio):
-        reserva = buscar_reserva(folio)
-        direccion = enlace_publico("ver_reserva", folio=reserva["folio"])
-        return imagen_qr(direccion, "qr-" + reserva["folio"] + ".png")
-
-    @app.route("/producto/<id>/qr.png")
-    def qr_producto(id):
-        if not ObjectId.is_valid(id):
-            abort(404, description="La clave del producto no es válida.")
-        if productos.find_one({"_id": ObjectId(id)}, {"_id": 1}) is None:
-            abort(404, description="Este producto ya no existe.")
-        direccion = enlace_publico("producto_detalle", id=id)
-        return imagen_qr(direccion, "qr-producto-" + id[-6:] + ".png")
+   
