@@ -9,6 +9,8 @@ Este archivo solo AGREGA rutas. No modifica el CRUD de la pagina
   "productos". Otras colecciones: usuarios, imagenes, pedidos.
 - El carrito es una RESERVA TEMPORAL guardada en Atlas (coleccion "reservas");
   el pedido guarda los precios del momento y descuenta las existencias.
+- Codigo QR: solo codifica la direccion de una pagina publica (ficha del
+  producto o comprobante del pedido); esa pagina consulta Atlas cada vez.
 - No hay cobro real: el pago es simulado y NO se piden datos de tarjeta.
 """
 import hmac
@@ -909,3 +911,72 @@ def registrar_extras(app, base_datos):
                 usuario_id=session["uid"]))
             flash("Pedido cancelado.", "success")
         return redirect(url_for("mis_pedidos"))
+
+
+    # ------------------------- Codigo QR y paginas publicas -------------------------
+    # El QR NO guarda datos: solo codifica la direccion de una pagina real de
+    # la tienda. Esa pagina consulta Atlas cada vez que se abre, asi que el
+    # mismo QR siempre muestra el estado mas reciente (no hace falta otro QR).
+    base_publica = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
+
+    def enlace_publico(endpoint, **valores):
+        """Direccion completa de una pagina publica (https en Render)."""
+        if base_publica:
+            return base_publica + url_for(endpoint, **valores)
+        return url_for(endpoint, _external=True, **valores)
+
+    def enlace_es_local(enlace):
+        host = (urlsplit(enlace).hostname or "").lower()
+        return host in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+
+    app.jinja_env.globals.update(enlace_publico=enlace_publico,
+                                 enlace_es_local=enlace_es_local)
+
+    def imagen_qr(enlace, nombre_archivo):
+        try:
+            import qrcode
+            from qrcode.constants import ERROR_CORRECT_M
+        except ImportError:
+            return make_response(
+                "Falta instalar la libreria qrcode (pip install -r requirements.txt).",
+                503)
+        qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, box_size=8, border=3)
+        qr.add_data(enlace)
+        qr.make(fit=True)
+        salida = io.BytesIO()
+        qr.make_image(fill_color="black", back_color="white").save(salida)
+        respuesta = make_response(salida.getvalue())
+        respuesta.headers["Content-Type"] = "image/png"
+        respuesta.headers["Cache-Control"] = "no-store"
+        if request.args.get("descargar"):
+            respuesta.headers["Content-Disposition"] = (
+                'attachment; filename="' + nombre_archivo + '"')
+        return respuesta
+
+    @app.route("/qr/producto/<id>.png")
+    def qr_producto(id):
+        producto = obtener_producto(id)
+        return imagen_qr(
+            enlace_publico("producto_detalle", id=str(producto["_id"])),
+            "qr-producto-" + str(producto["_id"])[-6:].upper() + ".png")
+
+    def obtener_pedido_publico(id):
+        if not ObjectId.is_valid(id):
+            abort(404, description="El folio del comprobante no es válido.")
+        pedido = pedidos.find_one({"_id": ObjectId(id)})
+        if pedido is None:
+            abort(404, description="Este comprobante no existe.")
+        return pedido
+
+    @app.route("/comprobante/<id>")
+    def comprobante(id):
+        # Pagina publica: solo folio, fecha, estado, productos y total.
+        # No muestra nombre, telefono ni direccion de entrega.
+        return render_template("comprobante.html", o=obtener_pedido_publico(id))
+
+    @app.route("/qr/pedido/<id>.png")
+    def qr_pedido(id):
+        pedido = obtener_pedido_publico(id)
+        return imagen_qr(
+            enlace_publico("comprobante", id=str(pedido["_id"])),
+            "qr-pedido-" + str(pedido["_id"])[-6:].upper() + ".png")

@@ -21,7 +21,8 @@
       <div class="col-md-7 d-flex flex-column">
         <div class="mb-2 d-flex gap-2 align-items-center flex-wrap">
           <span class="categoria-chip">{{ p.categoria }}</span>
-          <span class="estado" data-estado="{{ p.get('estado', 'Sin asignar') }}">{{ p.get('estado', 'Sin asignar') }}</span>
+          {% set etiqueta = 'Apartado' if (p.get('estado') == 'Disponible' and exist > 0 and disp == 0) else p.get('estado', 'Sin asignar') %}
+          <span class="estado" data-estado="{{ etiqueta }}">{{ etiqueta }}</span>
         </div>
         <h2 class="h2 detalle-nombre">{{ p.nombre }}</h2>
         <p class="precio-grande mb-3">{{ precio(p) }} {% if p.get('precio_cent') %}<small>MXN</small>{% endif %}</p>
@@ -62,6 +63,19 @@
             {% if es_admin %}
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_editar', id=p._id) }}">{{ icono('editar', 15) }} Editar (admin)</a>
             {% endif %}
+          </div>
+
+          {% set enlace = enlace_publico('producto_detalle', id=p._id|string) %}
+          <div class="qr-ficha">
+            <div class="qr-caja"><img src="{{ url_for('qr_producto', id=p._id) }}" width="104" height="104"
+                 alt="Código QR que abre la ficha de {{ p.nombre }}"></div>
+            <div>
+              <p class="small fw-semibold mb-1">QR de esta ficha</p>
+              <p class="small text-secondary mb-1">Escanéalo con tu celular: abre esta ficha con su disponibilidad actual.</p>
+              <p class="qr-direccion mb-1">{{ enlace }}</p>
+              {% if enlace_es_local(enlace) %}<p class="small text-warning mb-1">Estás en modo local: este QR abre localhost. En Render usará la dirección pública.</p>{% endif %}
+              <a class="small" target="_blank" rel="noopener" href="{{ url_for('qr_producto', id=p._id, descargar=1) }}">Descargar QR</a>
+            </div>
           </div>
         </div>
       </div>

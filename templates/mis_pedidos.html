@@ -27,8 +27,9 @@
         <strong>Total</strong><strong class="precio">{{ o.total_cent|dinero }}</strong>
       </div>
       <p class="small text-secondary mb-2">Entrega: {{ o.contacto.direccion }}</p>
+      <a class="btn btn-outline-primary btn-sm me-2" href="{{ url_for('comprobante', id=o._id) }}">Comprobante y QR</a>
       {% if o.estado == 'Pendiente' %}
-      <form method="post" action="{{ url_for('cancelar_pedido', id=o._id) }}" onsubmit="return confirm('¿Cancelar este pedido?');">
+      <form method="post" action="{{ url_for('cancelar_pedido', id=o._id) }}" class="d-inline" onsubmit="return confirm('¿Cancelar este pedido?');">
         <button type="submit" class="btn btn-outline-danger btn-sm">Cancelar pedido</button>
       </form>
       {% endif %}

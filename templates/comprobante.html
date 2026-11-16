@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import icono, seguimiento %}
+{% block pestana %}Comprobante #{{ o._id|string|numero }} · Zultek{% endblock %}
+{% block titulo %}Comprobante #{{ o._id|string|numero }}{% endblock %}
+{% block subtitulo %}Estado actualizado de un pedido de Zultek.{% endblock %}
+{% block contenido %}
+<nav class="migas" aria-label="Ruta">
+  <a href="{{ url_for('inicio') }}">Inicio</a><span>/</span>
+  <span aria-current="page">Comprobante #{{ o._id|string|numero }}</span>
+</nav>
+{% set enlace = enlace_publico('comprobante', id=o._id|string) %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="card aparecer">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between flex-wrap gap-2 mb-1">
+          <h2 class="h5 mb-0">Pedido <span class="num-pedido">#{{ o._id|string|numero }}</span></h2>
+          <span class="estado" data-estado="{{ o.estado }}">{{ o.estado }}</span>
+        </div>
+        <p class="text-secondary small mb-3">{{ o.creado|fecha }}</p>
+        {{ seguimiento(o.estado) }}
+        <ul class="list-unstyled mb-2 lineas-pedido">
+          {% for i in o['items'] %}
+          <li class="d-flex justify-content-between gap-3">
+            <span>{{ i.cantidad }} × {{ i.nombre }}</span>
+            <span>{{ (i.precio_cent * i.cantidad)|dinero }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="d-flex justify-content-between border-top pt-2 mb-3">
+          <strong>Total</strong><strong class="precio">{{ o.total_cent|dinero }}</strong>
+        </div>
+        <p class="small text-secondary">Comprobante público: no muestra nombre, teléfono ni dirección de entrega.</p>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('inicio') }}#lista">{{ icono('atras', 15) }} Volver al catálogo</a>
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="card aparecer">
+      <div class="card-body p-4 text-center">
+        <h2 class="h5 mb-3">Código QR del comprobante</h2>
+        <div class="qr-caja">
+          <img src="{{ url_for('qr_pedido', id=o._id) }}" width="220" height="220"
+               alt="Código QR que abre el comprobante del pedido {{ o._id|string|numero }}">
+        </div>
+        <p class="small text-secondary mt-3 mb-1">Escanéalo con tu celular: abre este comprobante con su estado actual.</p>
+        <p class="qr-direccion">{{ enlace }}</p>
+        {% if enlace_es_local(enlace) %}<p class="small text-warning">Estás en modo local: este QR abre localhost. En Render usará la dirección pública.</p>{% endif %}
+        <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener" href="{{ url_for('qr_pedido', id=o._id, descargar=1) }}">Descargar QR</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

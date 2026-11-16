@@ -944,3 +944,10 @@ main.container { position: relative; }
 .vitrina .foto,
 .vitrina .foto.grande,
 .vitrina .foto img { background: #fff !important; background-color: #fff !important; }
+
+/* ---------- Codigo QR y estado "Apartado" ---------- */
+.estado[data-estado="Apartado"] { background: rgba(255, 190, 60, .1); color: var(--aviso); border-color: rgba(255, 190, 60, .35); }
+.qr-ficha { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--linea); }
+.qr-caja { display: inline-block; background: #fff; padding: .45rem; border-radius: .5rem; line-height: 0; }
+.qr-caja img { display: block; max-width: 100%; height: auto; }
+.qr-direccion { font-size: .76rem; color: var(--suave); word-break: break-all; }
