@@ -58,80 +58,7 @@
     apariciones.forEach(function (el) { el.classList.add('visto'); });
   }
 
-  // ---------- Contadores animados (resumen del panel) ----------
-  document.querySelectorAll('[data-contar]').forEach(function (el) {
-    var meta = parseInt(el.dataset.contar, 10);
-    if (isNaN(meta) || reducir || meta === 0) return;
-    var inicio = null, dur = 900;
-    el.textContent = '0';
-    function paso(t) {
-      if (inicio === null) inicio = t;
-      var p = Math.min((t - inicio) / dur, 1);
-      el.textContent = Math.round(meta * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) requestAnimationFrame(paso);
-    }
-    requestAnimationFrame(paso);
-  });
-
-  // ---------- Buscador de la barra: búsqueda, categoría, solo disponibles ----------
-  var form = document.getElementById('filtro');
-  var buscar = document.getElementById('buscar');
-  var categoria = document.getElementById('categoria-filtro');
-  var solo = document.getElementById('solo-disponibles');
-  var items = document.querySelectorAll('[data-filtrable]');
-  var vacio = document.getElementById('sin-resultados');
-  var conteo = document.getElementById('conteo-resultados') || document.getElementById('conteo-admin');
-  var esConteoAdmin = conteo && conteo.id === 'conteo-admin';
-
-  function filtrar() {
-    var q = buscar.value.trim().toLowerCase();
-    var visibles = 0;
-    items.forEach(function (t) {
-      var ok = (!q || t.dataset.texto.indexOf(q) !== -1) &&
-               (!categoria.value || t.dataset.categoria === categoria.value) &&
-               (!solo || !solo.checked || t.dataset.disponible === '1');
-      t.hidden = !ok;
-      if (ok) visibles++;
-    });
-    if (vacio) vacio.hidden = visibles !== 0 || items.length === 0;
-    if (conteo) {
-      conteo.textContent = esConteoAdmin ? visibles :
-        visibles + ' producto' + (visibles === 1 ? '' : 's') +
-        (visibles !== items.length ? ' de ' + items.length : '');
-    }
-  }
-
-  if (form && buscar && categoria) {
-    // Si llegas desde otra página, la búsqueda viene en la dirección (?q=…&cat=…)
-    var params = new URLSearchParams(location.search);
-    if (params.get('q')) buscar.value = params.get('q');
-    if (params.get('cat')) {
-      var existe = Array.prototype.some.call(categoria.options, function (o) { return o.value === params.get('cat'); });
-      if (existe) categoria.value = params.get('cat');
-    }
-
-    if (items.length) {                      // la página tiene lista que filtrar
-      buscar.addEventListener('input', filtrar);
-      categoria.addEventListener('change', filtrar);
-      if (solo) solo.addEventListener('change', filtrar);
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        filtrar();
-        var lista = document.getElementById('lista');
-        if (lista) lista.scrollIntoView({ behavior: reducir ? 'auto' : 'smooth' });
-      });
-      var limpiar = document.getElementById('limpiar-filtros');
-      if (limpiar) limpiar.addEventListener('click', function () {
-        buscar.value = ''; categoria.value = ''; if (solo) solo.checked = false; filtrar(); buscar.focus();
-      });
-      if (buscar.value || categoria.value) {
-        filtrar();
-        var l = document.getElementById('lista');
-        if (l && location.pathname === '/') setTimeout(function () { l.scrollIntoView(); }, 60);
-      }
-    }
-  }
-
+  
   // ---------- Filtro de pedidos por estado (administrador) ----------
   var tabs = document.querySelectorAll('[data-estado-filtro]');
   if (tabs.length) {
@@ -261,10 +188,20 @@
       return faltan;
     };
     pintar();
-    var reloj = setInterval(function () {
+        if ((parseInt(cuentas[0].getAttribute('data-cuenta'), 10) || 0) > 5) {
+      try { sessionStorage.removeItem('reserva_recargada'); } catch (e) {}
+    }
+        var reloj = setInterval(function () {
       if (pintar() === 0) {
         clearInterval(reloj);
-        window.location.assign(window.location.pathname); // el servidor libera y recalcula
+        var yaRecargo = false;
+        try { yaRecargo = sessionStorage.getItem('reserva_recargada') === '1'; } catch (e) {}
+        if (!yaRecargo) {
+          try { sessionStorage.setItem('reserva_recargada', '1'); } catch (e) {}
+          window.location.assign(window.location.pathname); // el servidor libera y recalcula
+        } else {
+          for (var i = 0; i < cuentas.length; i++) cuentas[i].textContent = 'terminó';
+        }
       }
     }, 1000);
   }
