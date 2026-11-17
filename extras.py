@@ -9,9 +9,6 @@ Este archivo solo AGREGA rutas. No modifica el CRUD de la pagina
   "productos". Otras colecciones: usuarios, imagenes, pedidos.
 - El carrito es una RESERVA TEMPORAL guardada en Atlas (coleccion "reservas");
   el pedido guarda los precios del momento y descuenta las existencias.
-- Codigo QR: solo codifica la direccion de una pagina publica (ficha del
-  producto o comprobante del pedido); esa pagina consulta Atlas cada vez.
-- El carrito vive en la sesion; el pedido guarda los precios del momento.
 - No hay cobro real: el pago es simulado y NO se piden datos de tarjeta.
 """
 import hmac
@@ -19,6 +16,7 @@ import io
 import os
 import re
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -28,12 +26,18 @@ from bson import Binary, ObjectId
 from flask import (abort, flash, g, jsonify, make_response, redirect,
                    render_template, request, session, url_for)
 from PIL import Image
+import segno
+from pymongo import ReturnDocument
 from pymongo.errors import PyMongoError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 MAX_POR_PRODUCTO = 10
 MAX_PRODUCTOS = 40
+MAX_EXISTENCIAS = 9999
+# Minutos que dura una reserva. En Render se puede cambiar con RESERVA_MINUTOS
+# (por ejemplo 1 para probar el vencimiento sin esperar 5 minutos).
+DURACION_RESERVA_MINUTOS = max(1, min(int(os.environ.get("RESERVA_MINUTOS", "5")), 60))
 METODO = "pbkdf2:sha256"
 
 ESTADOS_PRODUCTO = ("Disponible", "Agotado")
@@ -60,6 +64,19 @@ def fecha(valor):
     return valor.astimezone(ZONA).strftime("%d/%m/%Y %H:%M")
 
 
+def ahora_utc():
+    return datetime.now(timezone.utc)
+
+
+def segundos_restantes(vence):
+    """Segundos que faltan para vence_en (solo informa; el servidor decide)."""
+    if not isinstance(vence, datetime):
+        return 0
+    if vence.tzinfo is None:
+        vence = vence.replace(tzinfo=timezone.utc)
+    return max(0, int((vence - ahora_utc()).total_seconds()))
+
+
 def leer_precio(texto):
     """'1,299.50' -> 129950 centavos. None si no es un precio valido."""
     limpio = (texto or "").replace("$", "").replace(",", "").replace(" ", "")
@@ -73,14 +90,6 @@ def leer_precio(texto):
     return int(valor * 100)
 
 
-def leer_existencias(texto):
-    """'12' -> 12. None si no es un entero de 0 a 9999."""
-    texto = (texto or "").strip()
-    if not re.fullmatch(r"[0-9]{1,4}", texto):
-        return None
-    return int(texto)
-
-
 def leer_producto(form):
     """Mismos limites que leer_formulario de app.py, mas precio y descripcion."""
     nombre = form.get("nombre", "").strip()
@@ -88,7 +97,10 @@ def leer_producto(form):
     estado = form.get("estado", "").strip()
     descripcion = form.get("descripcion", "").strip()
     precio = leer_precio(form.get("precio", ""))
-    existencias = leer_existencias(form.get("existencias", ""))
+    try:
+        existencias = int(form.get("existencias", "").strip())
+    except ValueError:
+        existencias = None
     error = None
     if not nombre or not categoria or not estado:
         error = "Completa nombre, categoría y estado."
@@ -98,13 +110,13 @@ def leer_producto(form):
         error = "Selecciona un estado válido."
     elif precio is None:
         error = "Escribe un precio válido, por ejemplo 1299.50."
-    elif existencias is None:
-        error = "Las existencias deben ser un número entero de 0 a 9999."
+    elif existencias is None or not 0 <= existencias <= MAX_EXISTENCIAS:
+        error = "Las existencias deben ser un número entero entre 0 y 9999."
     elif len(descripcion) > 300:
         error = "La descripción admite hasta 300 caracteres."
     datos = {"nombre": nombre, "categoria": categoria, "estado": estado,
              "precio_cent": precio, "descripcion": descripcion,
-             "existencias": existencias}
+             "existencias": existencias if existencias is not None else 0}
     return datos, error
 
 
@@ -133,6 +145,22 @@ def registrar_extras(app, base_datos):
     productos = base_datos["productos"]
     imagenes = base_datos["imagenes"]
     pedidos = base_datos["pedidos"]
+    reservas = base_datos["reservas"]
+    cliente = base_datos.client
+
+    try:
+        reservas.create_index([("reserva_id", 1), ("producto_id", 1)],
+                              unique=True, name="reserva_producto_unico")
+        reservas.create_index("vence_en", name="vence_en")
+        # Productos anteriores: valores iniciales. Es seguro repetirlo porque
+        # solo toca documentos que todavia no tienen el campo.
+        # El 10 es solo para pruebas: despues el administrador pone la existencia real.
+        productos.update_many({"existencias": {"$exists": False}},
+                              {"$set": {"existencias": 10}})
+        productos.update_many({"reservadas": {"$exists": False}},
+                              {"$set": {"reservadas": 0}})
+    except PyMongoError as error:
+        app.logger.warning("No se pudo preparar la reserva en Atlas: %s", error)
 
     en_render = bool(os.environ.get("RENDER"))
 
@@ -195,7 +223,11 @@ def registrar_extras(app, base_datos):
 
     @app.context_processor
     def datos_comunes():
-        carrito = session.get("carrito", {})
+        try:  # unidades apartadas (activas) en Atlas para este visitante
+            activas = (reservas_activas(session.get("reserva_id"))
+                       if session.get("uid") else [])
+        except PyMongoError:
+            activas = []
         try:  # categorías para la barra de navegación (buscador)
             categorias_nav = sorted(
                 (c for c in productos.distinct("categoria") if isinstance(c, str)),
@@ -205,7 +237,7 @@ def registrar_extras(app, base_datos):
         return {
             "usuario": session.get("nombre"),
             "es_admin": es_admin() if session.get("uid") else False,
-            "carrito_total": sum(carrito.values()),
+            "carrito_total": sum(int(i["cantidad"]) for i in activas),
             "categorias_nav": categorias_nav,
         }
 
@@ -230,11 +262,7 @@ def registrar_extras(app, base_datos):
         return envoltura
 
     def abrir_sesion(usuario_id, nombre):
-        # Conserva la identidad de reserva (reservas.py) al iniciar sesion
-        conservar = {k: session[k] for k in ("visitante", "reserva_folio")
-                     if k in session}
         session.clear()
-        session.update(conservar)
         session["uid"] = str(usuario_id)
         session["nombre"] = nombre
 
@@ -394,6 +422,10 @@ def registrar_extras(app, base_datos):
 
     @app.route("/cuenta/salir", methods=["POST"])
     def cerrar_sesion():
+        try:  # lo apartado vuelve a estar disponible para los demas
+            cancelar_todo(session.get("reserva_id"))
+        except PyMongoError:
+            pass
         session.clear()
         flash("Cerraste sesión.", "success")
         return redirect(url_for("inicio"))
@@ -461,10 +493,23 @@ def registrar_extras(app, base_datos):
             if producto is None:
                 datos.setdefault("imagen", False)
                 datos.setdefault("img_v", int(time.time()))
+                datos["reservadas"] = 0
                 nuevo_id = productos.insert_one(datos).inserted_id
             else:
                 nuevo_id = producto["_id"]
-                productos.update_one({"_id": nuevo_id}, {"$set": datos})
+                # No se pueden dejar menos existencias que las unidades apartadas.
+                resultado = productos.update_one(
+                    {"_id": nuevo_id,
+                     "$expr": {"$lte": [{"$ifNull": ["$reservadas", 0]},
+                                        datos["existencias"]]}},
+                    {"$set": datos})
+                if resultado.matched_count == 0:
+                    return render_template(
+                        "admin_producto.html", modo=modo, p=producto or {},
+                        f=request.form, categorias=categorias, error=(
+                            "Hay más unidades apartadas por clientes que las "
+                            "existencias que escribiste. Sube la cantidad o "
+                            "espera a que venzan las reservas.")), 400
             if imagen:
                 guardar_imagen(nuevo_id, imagen)
             elif quitar:
@@ -497,42 +542,200 @@ def registrar_extras(app, base_datos):
         estado = request.form.get("estado", "")
         if not ObjectId.is_valid(id) or estado not in ESTADOS_PEDIDO:
             abort(400, description="Pedido o estado no válido.")
-        pedidos.update_one({"_id": ObjectId(id)}, {"$set": {"estado": estado}})
+        actual = pedidos.find_one({"_id": ObjectId(id)})
+        if actual is None:
+            abort(404, description="Ese pedido no existe.")
+        if estado == "Cancelado":
+            # Cancelar devuelve las unidades a las existencias.
+            en_transaccion(lambda ms: cancelar_y_devolver(actual["_id"], ms))
+        elif actual.get("estado") == "Cancelado":
+            flash("Un pedido cancelado no se puede reactivar: ya se devolvieron "
+                  "sus existencias.", "warning")
+            return redirect(url_for("admin_pedidos"))
+        else:
+            pedidos.update_one({"_id": actual["_id"]}, {"$set": {"estado": estado}})
         flash("Estado del pedido actualizado.", "success")
         return redirect(url_for("admin_pedidos"))
 
-    # ------------------------- Carrito -------------------------
+    # ------------------------- Reserva temporal -------------------------
+    # La reserva vive en Atlas. El contador de la pagina solo informa: quien
+    # decide si una unidad esta libre es la operacion atomica de MongoDB.
+    class PedidoRechazado(Exception):
+        pass
+
+    def obtener_reserva_id():
+        if not session.get("reserva_id"):
+            session["reserva_id"] = uuid.uuid4().hex
+        return session["reserva_id"]
+
+    def en_transaccion(operacion):
+        """Ejecuta operacion(ms) en una transaccion de Atlas (con reintentos)."""
+        with cliente.start_session() as ms:
+            return ms.with_transaction(operacion)
+
+    def disponibles_de(p):
+        return max(0, int(p.get("existencias", 0) or 0)
+                   - int(p.get("reservadas", 0) or 0))
+
+    def reservas_activas(reserva_id):
+        if not reserva_id:
+            return []
+        return list(reservas.find({"reserva_id": reserva_id, "estado": "activa",
+                                   "vence_en": {"$gt": ahora_utc()}}))
+
+    def reservar(oid, reserva_id, cantidad):
+        """Aparta unidades SOLO si siguen libres. -> (codigo, unidades)."""
+        def operacion(ms):
+            ahora = ahora_utc()
+            vence = ahora + timedelta(minutes=DURACION_RESERVA_MINUTOS)
+            actual = reservas.find_one(
+                {"reserva_id": reserva_id, "producto_id": oid,
+                 "estado": "activa"}, session=ms)
+            ya = int(actual["cantidad"]) if actual else 0
+            permitido = min(cantidad, MAX_POR_PRODUCTO - ya)
+            if permitido <= 0:
+                return "limite", 0
+            # Revisar y apartar en UN solo movimiento: aqui se evita vender
+            # dos veces la ultima unidad.
+            producto = productos.find_one_and_update(
+                {"_id": oid, "estado": "Disponible",
+                 "precio_cent": {"$type": "number"},
+                 "$expr": {"$gte": [
+                     {"$subtract": [{"$ifNull": ["$existencias", 0]},
+                                    {"$ifNull": ["$reservadas", 0]}]},
+                     permitido]}},
+                {"$inc": {"reservadas": permitido}},
+                return_document=ReturnDocument.AFTER, session=ms)
+            if producto is None:
+                return "sin_disponibilidad", 0
+            reservas.update_one(
+                {"reserva_id": reserva_id, "producto_id": oid},
+                {"$inc": {"cantidad": permitido},
+                 "$set": {"estado": "activa", "vence_en": vence},
+                 "$setOnInsert": {"creada_en": ahora}},
+                upsert=True, session=ms)
+            return "ok", permitido
+        return en_transaccion(operacion)
+
+    def devolver(oid, reserva_id, cantidad=None):
+        """Libera unidades apartadas (todas si cantidad es None)."""
+        def operacion(ms):
+            reserva = reservas.find_one(
+                {"reserva_id": reserva_id, "producto_id": oid,
+                 "estado": "activa"}, session=ms)
+            if reserva is None:
+                return 0
+            total = int(reserva["cantidad"])
+            n = total if cantidad is None else min(cantidad, total)
+            if n >= total:
+                reservas.delete_one({"_id": reserva["_id"]}, session=ms)
+            else:
+                reservas.update_one({"_id": reserva["_id"]},
+                                    {"$inc": {"cantidad": -n}}, session=ms)
+            productos.update_one({"_id": oid}, {"$inc": {"reservadas": -n}},
+                                 session=ms)
+            return n
+        return en_transaccion(operacion)
+
+    def cancelar_todo(reserva_id):
+        if not reserva_id:
+            return
+        for r in list(reservas.find({"reserva_id": reserva_id,
+                                     "estado": "activa"})):
+            devolver(r["producto_id"], reserva_id)
+
+    def liberar_vencidas():
+        """Devuelve a disponibilidad las reservas cuyo vence_en ya paso."""
+        vencidas = list(reservas.find({"estado": "activa",
+                                       "vence_en": {"$lte": ahora_utc()}}))
+        for candidata in vencidas:
+            def operacion(ms, candidata=candidata):
+                eliminada = reservas.find_one_and_delete(
+                    {"_id": candidata["_id"], "estado": "activa"}, session=ms)
+                if eliminada:  # solo una vez, aunque dos peticiones coincidan
+                    productos.update_one(
+                        {"_id": eliminada["producto_id"]},
+                        {"$inc": {"reservadas": -int(eliminada["cantidad"])}},
+                        session=ms)
+            en_transaccion(operacion)
+
+    ENDPOINTS_CON_RESERVA = {
+        "inicio", "producto_detalle", "ver_carrito", "carrito_agregar",
+        "carrito_cambiar", "carrito_vaciar", "confirmar_pedido", "admin_panel"}
+
+    @app.before_request
+    def liberar_antes_de_responder():
+        if request.endpoint in ENDPOINTS_CON_RESERVA:
+            liberar_vencidas()
+
+    def cancelar_y_devolver(pedido_id, ms, solo_pendiente=False, usuario_id=None):
+        """Marca el pedido como Cancelado y devuelve sus unidades a existencias."""
+        filtro = {"_id": pedido_id, "estado": {"$ne": "Cancelado"}}
+        if solo_pendiente:
+            filtro["estado"] = "Pendiente"
+        if usuario_id is not None:
+            filtro["usuario_id"] = usuario_id
+        pedido = pedidos.find_one_and_update(
+            filtro, {"$set": {"estado": "Cancelado"}}, session=ms)
+        if pedido and pedido.get("stock_descontado"):
+            for item in pedido.get("items", []):
+                if ObjectId.is_valid(item.get("id")):
+                    productos.update_one(
+                        {"_id": ObjectId(item["id"])},
+                        {"$inc": {"existencias": int(item["cantidad"])}},
+                        session=ms)
+        return bool(pedido)
+
+    # ------------------------- Carrito (lee las reservas de Atlas) -------------------------
     def armar_carrito():
-        carrito = session.get("carrito", {})
-        ids = [ObjectId(i) for i in carrito if ObjectId.is_valid(i)]
+        activas = reservas_activas(session.get("reserva_id"))
+        ids = [i["producto_id"] for i in activas]
+        por_id = {p["_id"]: p for p in productos.find({"_id": {"$in": ids}})}
         filas = []
-        for p in productos.find({"_id": {"$in": ids}}).sort("nombre", 1):
-            clave = str(p["_id"])
-            cantidad = carrito[clave]
+        for item in activas:
+            p = por_id.get(item["producto_id"])
+            if p is None:  # el producto se elimino: la reserva queda huerfana
+                reservas.delete_one({"_id": item["_id"]})
+                continue
+            cantidad = int(item["cantidad"])
             precio = p.get("precio_cent")
-            ok = p.get("estado") == "Disponible" and isinstance(precio, int)
+            # Una unidad ya apartada sigue siendo de este carrito aunque el
+            # producto aparezca sin disponibilidad para los demas.
+            ok = isinstance(precio, int)
             filas.append({
-                "id": clave, "p": p, "nombre": p["nombre"],
+                "id": str(p["_id"]), "p": p, "nombre": p["nombre"],
                 "categoria": p["categoria"], "cantidad": cantidad,
                 "precio": precio if ok else None, "ok": ok,
                 "subtotal": precio * cantidad if ok else 0,
-                "motivo": ("Agotado" if p.get("estado") != "Disponible"
-                           else "Sin precio"),
+                "motivo": "Sin precio", "vence_en": item["vence_en"],
             })
-        vigentes = {f["id"] for f in filas}
-        if set(carrito) != vigentes:  # quita productos que ya no existen
-            session["carrito"] = {k: v for k, v in carrito.items()
-                                  if k in vigentes}
-        return filas, sum(f["subtotal"] for f in filas)
+        filas.sort(key=lambda f: f["nombre"].lower())
+        vence = min((f["vence_en"] for f in filas), default=None)
+        return filas, sum(f["subtotal"] for f in filas), vence
 
     @app.route("/carrito")
     @requiere_sesion
     def ver_carrito():
-        filas, total_cent = armar_carrito()
+        filas, total_cent, vence = armar_carrito()
         return render_template(
             "carrito.html", filas=filas, total_cent=total_cent,
             total=sum(f["cantidad"] for f in filas),
-            hay_problemas=any(not f["ok"] for f in filas))
+            hay_problemas=any(not f["ok"] for f in filas),
+            vence_en=vence, restante=segundos_restantes(vence),
+            minutos_reserva=DURACION_RESERVA_MINUTOS)
+
+    def avisar_sin_disponibilidad(producto_id, nombre):
+        actual = productos.find_one({"_id": producto_id}) or {}
+        quedan = disponibles_de(actual)
+        if actual.get("estado") != "Disponible":
+            flash("«" + nombre + "» ya no está disponible.", "warning")
+        elif quedan > 0:
+            flash("Solo quedan " + str(quedan) + " unidad(es) de «" + nombre
+                  + "» disponibles ahora mismo.", "warning")
+        else:
+            flash("«" + nombre + "» ya no tiene unidades disponibles: otra "
+                  "persona las acaba de apartar. Puede liberarse si no "
+                  "confirma a tiempo.", "warning")
 
     @app.route("/carrito/agregar/<id>", methods=["POST"])
     @requiere_sesion
@@ -550,145 +753,81 @@ def registrar_extras(app, base_datos):
         except ValueError:
             cantidad = 1
         cantidad = max(1, min(cantidad, MAX_POR_PRODUCTO))
-        carrito = dict(session.get("carrito", {}))
-        clave = str(producto["_id"])
-        if clave not in carrito and len(carrito) >= MAX_PRODUCTOS:
+        reserva_id = obtener_reserva_id()
+        activas = reservas_activas(reserva_id)
+        if (producto["_id"] not in {i["producto_id"] for i in activas}
+                and len(activas) >= MAX_PRODUCTOS):
             flash("Tu carrito ya tiene el máximo de productos.", "warning")
             return redirect(destino)
-        carrito[clave] = min(carrito.get(clave, 0) + cantidad, MAX_POR_PRODUCTO)
-        session["carrito"] = carrito
-        flash("Agregaste «" + producto["nombre"] + "» al carrito.", "success")
+        codigo, apartadas = reservar(producto["_id"], reserva_id, cantidad)
+        if codigo == "ok":
+            flash("Apartaste " + str(apartadas) + " × «" + producto["nombre"]
+                  + "» durante " + str(DURACION_RESERVA_MINUTOS)
+                  + " minutos. Confirma tu pedido antes de que termine.",
+                  "success")
+        elif codigo == "limite":
+            flash("Ya tienes el máximo de unidades de ese producto.", "warning")
+        else:
+            avisar_sin_disponibilidad(producto["_id"], producto["nombre"])
         return redirect(destino)
 
     @app.route("/carrito/cambiar/<id>", methods=["POST"])
     @requiere_sesion
     def carrito_cambiar(id):
-        carrito = dict(session.get("carrito", {}))
+        if not ObjectId.is_valid(id):
+            abort(404, description="La clave del producto no es válida.")
+        oid = ObjectId(id)
+        reserva_id = session.get("reserva_id")
         accion = request.form.get("accion", "")
-        if id in carrito and accion in ("mas", "menos", "quitar"):
+        if reserva_id and accion in ("mas", "menos", "quitar"):
             if accion == "mas":
-                carrito[id] = min(carrito[id] + 1, MAX_POR_PRODUCTO)
+                codigo, _ = reservar(oid, reserva_id, 1)
+                if codigo == "limite":
+                    flash("Ya tienes el máximo de unidades de ese producto.",
+                          "warning")
+                elif codigo != "ok":
+                    avisar_sin_disponibilidad(oid, "este producto")
             elif accion == "menos":
-                carrito[id] -= 1
+                devolver(oid, reserva_id, 1)
             else:
-                carrito[id] = 0
-            if carrito[id] <= 0:
-                del carrito[id]
-            session["carrito"] = carrito
+                devolver(oid, reserva_id)
+                flash("Reserva cancelada: el producto quedó libre.", "success")
         return redirect(url_for("ver_carrito"))
 
     @app.route("/carrito/vaciar", methods=["POST"])
     @requiere_sesion
     def carrito_vaciar():
-        session["carrito"] = {}
-        flash("Vaciaste el carrito.", "success")
+        cancelar_todo(session.get("reserva_id"))
+        flash("Vaciaste el carrito. Los productos quedaron libres.", "success")
         return redirect(url_for("ver_carrito"))
 
-    # ------------------------- Pedidos -------------------------
-    @app.route("/pedido/confirmar", methods=["GET", "POST"])
-    @requiere_sesion
-    def confirmar_pedido():
-        filas, total_cent = armar_carrito()
-        if not filas:
-            flash("Tu carrito está vacío.", "warning")
-            return redirect(url_for("ver_carrito"))
-        if any(not f["ok"] for f in filas):
-            flash("Quita del carrito los productos agotados o sin precio.",
-                  "warning")
-            return redirect(url_for("ver_carrito"))
-        datos = {"nombre": session.get("nombre", ""), "telefono": "",
-                 "direccion": "", "metodo": METODOS_PAGO[0]}
-        error = None
-        if request.method == "POST":
-            for campo in datos:
-                datos[campo] = request.form.get(campo, "").strip()
-            if not datos["nombre"] or not datos["direccion"]:
-                error = "Escribe tu nombre y la dirección de entrega."
-            elif len(datos["nombre"]) > 60 or len(datos["direccion"]) > 160:
-                error = "Máximo: nombre 60 y dirección 160 caracteres."
-            elif not re.fullmatch(r"[0-9 +()-]{8,20}", datos["telefono"]):
-                error = "Escribe un teléfono válido (solo números, 8 a 20)."
-            elif datos["metodo"] not in METODOS_PAGO:
-                error = "Selecciona un método de pago."
-            if not error:
-                pedido = pedidos.insert_one({
-                    "usuario_id": session["uid"],
-                    "usuario": session.get("nombre", ""),
-                    "items": [{"id": f["id"], "nombre": f["nombre"],
-                               "precio_cent": f["precio"],
-                               "cantidad": f["cantidad"]} for f in filas],
-                    "total_cent": total_cent,
-                    "estado": "Pendiente",
-                    "contacto": {"nombre": datos["nombre"],
-                                 "telefono": datos["telefono"],
-                                 "direccion": datos["direccion"]},
-                    "metodo": datos["metodo"],
-                    "creado": datetime.now(timezone.utc),
-                })
-                session["carrito"] = {}
-                flash("Pedido #" + str(pedido.inserted_id)[-6:].upper()
-                      + " registrado. Gracias por tu compra.", "success")
-                return redirect(url_for("mis_pedidos"))
-        return render_template("pedido.html", filas=filas,
-                               total_cent=total_cent, d=datos, error=error), (
-                                   400 if error else 200)
-
-    @app.route("/mis-pedidos")
-    @requiere_sesion
-    def mis_pedidos():
-        lista = list(pedidos.find({"usuario_id": session["uid"]})
-                     .sort("creado", -1))
-        return render_template("mis_pedidos.html", lista=lista)
-
-    @app.route("/mis-pedidos/<id>/cancelar", methods=["POST"])
-    @requiere_sesion
-    def cancelar_pedido(id):
-        if not ObjectId.is_valid(id):
-            abort(404, description="Ese pedido no existe.")
-        pedido = pedidos.find_one({"_id": ObjectId(id)})
-        if pedido is None or pedido.get("usuario_id") != session["uid"]:
-            abort(404, description="Ese pedido no existe.")
-        if pedido.get("estado") != "Pendiente":
-            flash("Solo se pueden cancelar pedidos pendientes.", "warning")
-        else:
-            pedidos.update_one({"_id": pedido["_id"]},
-                               {"$set": {"estado": "Cancelado"}})
-            flash("Pedido cancelado.", "success")
-        return redirect(url_for("mis_pedidos"))
+    
 
 
-    # ------------------------- Codigo QR y paginas publicas -------------------------
-    # El QR NO guarda datos: solo codifica la direccion de una pagina real de
-    # la tienda. Esa pagina consulta Atlas cada vez que se abre, asi que el
-    # mismo QR siempre muestra el estado mas reciente (no hace falta otro QR).
-    base_publica = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
+    # ------------------------- Codigos QR -------------------------
+    def base_publica():
+        """En Render usa su URL publica; nunca localhost en la entrega."""
+        for variable in ("APP_BASE_URL", "RENDER_EXTERNAL_URL"):
+            valor = os.environ.get(variable, "").strip().rstrip("/")
+            if valor.startswith(("http://", "https://")):
+                return valor
+        return request.url_root.rstrip("/")
 
     def enlace_publico(endpoint, **valores):
-        """Direccion completa de una pagina publica (https en Render)."""
-        if base_publica:
-            return base_publica + url_for(endpoint, **valores)
-        return url_for(endpoint, _external=True, **valores)
+        return base_publica() + url_for(endpoint, **valores)
 
-    def enlace_es_local(enlace):
-        host = (urlsplit(enlace).hostname or "").lower()
-        return host in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+    def enlace_es_local(direccion):
+        """True si el enlace apunta a localhost (solo sirve en tu PC)."""
+        return any(x in direccion for x in ("localhost", "127.0.0.1", "0.0.0.0"))
 
-    app.jinja_env.globals.update(enlace_publico=enlace_publico,
-                                 enlace_es_local=enlace_es_local)
+    app.jinja_env.globals.update(
+        enlace_publico=enlace_publico, enlace_es_local=enlace_es_local)
 
-    def imagen_qr(enlace, nombre_archivo):
-        try:
-            import qrcode
-            from qrcode.constants import ERROR_CORRECT_M
-        except ImportError:
-            return make_response(
-                "Falta instalar la libreria qrcode (pip install -r requirements.txt).",
-                503)
-        qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, box_size=8, border=3)
-        qr.add_data(enlace)
-        qr.make(fit=True)
+
+    def imagen_qr(direccion, nombre_archivo):
         salida = io.BytesIO()
-        qr.make_image(fill_color="black", back_color="white").save(salida)
+        segno.make(direccion, error="m", micro=False).save(
+            salida, kind="png", scale=8, border=3)
         respuesta = make_response(salida.getvalue())
         respuesta.headers["Content-Type"] = "image/png"
         respuesta.headers["Cache-Control"] = "no-store"
@@ -714,8 +853,7 @@ def registrar_extras(app, base_datos):
 
     @app.route("/comprobante/<id>")
     def comprobante(id):
-        # Pagina publica: solo folio, fecha, estado, productos y total.
-        # No muestra nombre, telefono ni direccion de entrega.
+        # Pagina publica: sin nombre, telefono ni direccion.
         return render_template("comprobante.html", o=obtener_pedido_publico(id))
 
     @app.route("/qr/pedido/<id>.png")
@@ -724,3 +862,116 @@ def registrar_extras(app, base_datos):
         return imagen_qr(
             enlace_publico("comprobante", id=str(pedido["_id"])),
             "qr-pedido-" + str(pedido["_id"])[-6:].upper() + ".png")
+
+
+
+
+    # ------------------------- Pedidos -------------------------
+    def crear_pedido(reserva_id, datos):
+        """Confirma TODO o nada: revisa reservas, descuenta, crea pedido, cierra."""
+        def operacion(ms):
+            ahora = ahora_utc()
+            items = list(reservas.find(
+                {"reserva_id": reserva_id, "estado": "activa",
+                 "vence_en": {"$gt": ahora}}, session=ms))
+            if not items:
+                raise PedidoRechazado(
+                    "Tu reserva venció. Vuelve a agregar los productos.")
+            lineas, total = [], 0
+            for item in items:
+                n = int(item["cantidad"])
+                p = productos.find_one_and_update(
+                    {"_id": item["producto_id"],
+                     "precio_cent": {"$type": "number"},
+                     "existencias": {"$gte": n}, "reservadas": {"$gte": n}},
+                    {"$inc": {"existencias": -n, "reservadas": -n}},
+                    session=ms)
+                if p is None:
+                    raise PedidoRechazado(
+                        "No fue posible confirmar: un producto cambió o ya no existe.")
+                lineas.append({"id": str(p["_id"]), "nombre": p["nombre"],
+                               "precio_cent": p["precio_cent"], "cantidad": n})
+                total += p["precio_cent"] * n
+            cerradas = reservas.delete_many(
+                {"_id": {"$in": [i["_id"] for i in items]},
+                 "estado": "activa"}, session=ms)
+            if cerradas.deleted_count != len(items):
+                raise PedidoRechazado("Tu reserva cambió. Revisa tu carrito.")
+            return pedidos.insert_one({
+                "usuario_id": session["uid"],
+                "usuario": session.get("nombre", ""),
+                "items": lineas,
+                "total_cent": total,
+                "estado": "Pendiente",
+                "contacto": {"nombre": datos["nombre"],
+                             "telefono": datos["telefono"],
+                             "direccion": datos["direccion"]},
+                "metodo": datos["metodo"],
+                "stock_descontado": True,
+                "creado": ahora,
+            }, session=ms).inserted_id
+        return en_transaccion(operacion)
+
+    @app.route("/pedido/confirmar", methods=["GET", "POST"])
+    @requiere_sesion
+    def confirmar_pedido():
+        filas, total_cent, vence = armar_carrito()
+        if not filas:
+            flash("Tu carrito está vacío o tu reserva venció.", "warning")
+            return redirect(url_for("ver_carrito"))
+        if any(not f["ok"] for f in filas):
+            flash("Quita del carrito los productos sin precio.", "warning")
+            return redirect(url_for("ver_carrito"))
+        datos = {"nombre": session.get("nombre", ""), "telefono": "",
+                 "direccion": "", "metodo": METODOS_PAGO[0]}
+        error = None
+        if request.method == "POST":
+            for campo in datos:
+                datos[campo] = request.form.get(campo, "").strip()
+            if not datos["nombre"] or not datos["direccion"]:
+                error = "Escribe tu nombre y la dirección de entrega."
+            elif len(datos["nombre"]) > 60 or len(datos["direccion"]) > 160:
+                error = "Máximo: nombre 60 y dirección 160 caracteres."
+            elif not re.fullmatch(r"[0-9 +()-]{8,20}", datos["telefono"]):
+                error = "Escribe un teléfono válido (solo números, 8 a 20)."
+            elif datos["metodo"] not in METODOS_PAGO:
+                error = "Selecciona un método de pago."
+            if not error:
+                try:
+                    pedido_id = crear_pedido(session.get("reserva_id"), datos)
+                except PedidoRechazado as rechazo:
+                    flash(str(rechazo), "warning")
+                    return redirect(url_for("ver_carrito"))
+                session.pop("reserva_id", None)
+                flash("Pedido #" + str(pedido_id)[-6:].upper()
+                      + " registrado. Gracias por tu compra.", "success")
+                return redirect(url_for("mis_pedidos"))
+        return render_template("pedido.html", filas=filas,
+                               total_cent=total_cent, d=datos, error=error,
+                               vence_en=vence,
+                               restante=segundos_restantes(vence)), (
+                                   400 if error else 200)
+
+    @app.route("/mis-pedidos")
+    @requiere_sesion
+    def mis_pedidos():
+        lista = list(pedidos.find({"usuario_id": session["uid"]})
+                     .sort("creado", -1))
+        return render_template("mis_pedidos.html", lista=lista)
+
+    @app.route("/mis-pedidos/<id>/cancelar", methods=["POST"])
+    @requiere_sesion
+    def cancelar_pedido(id):
+        if not ObjectId.is_valid(id):
+            abort(404, description="Ese pedido no existe.")
+        pedido = pedidos.find_one({"_id": ObjectId(id)})
+        if pedido is None or pedido.get("usuario_id") != session["uid"]:
+            abort(404, description="Ese pedido no existe.")
+        if pedido.get("estado") != "Pendiente":
+            flash("Solo se pueden cancelar pedidos pendientes.", "warning")
+        else:
+            en_transaccion(lambda ms: cancelar_y_devolver(
+                pedido["_id"], ms, solo_pendiente=True,
+                usuario_id=session["uid"]))
+            flash("Pedido cancelado.", "success")
+        return redirect(url_for("mis_pedidos"))

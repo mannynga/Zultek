@@ -131,8 +131,8 @@ def api_producto(id):
 from extras import registrar_extras
 registrar_extras(app, base_datos)
 
-from reservas import registrar_reservas
-registrar_reservas(app, base_datos)
+#from reservas import registrar_reservas
+#registrar_reservas(app, base_datos)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)
